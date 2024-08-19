@@ -88,6 +88,14 @@ class JsonFile(File):
         """
         self.write_content(obj.to_json(indent=4))
 
+    def read_dataclass_json_obj(self, dataclass):
+        """
+        读取文件内容并将其转换为数据类对象
+        """
+        with open(self.path, 'r', encoding="utf-8") as file:
+            return dataclass.from_json(file.read())
+
+
     def write_pydanitc_model(self, model: TPM):
         """
         将 Pydantic 模型写入文件
@@ -158,6 +166,20 @@ class Directory(object):
             self.path.mkdir(parents=True)
         if not self.path.is_dir():
             raise ValueError(f"路径 {path} 不是一个目录")
+
+    def find_file(self, file_name: str) -> File:
+        """
+        在目录下查找指定文件
+
+        Args:
+            file_name: 文件名
+
+        Returns:
+            如果找到,则返回文件对象,否则返回None
+        """
+        for file in self.list_files():
+            if file.name == file_name:
+                return File(str(file))
 
     def new_file(self, file_name: str) -> TF:
         """
