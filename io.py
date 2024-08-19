@@ -12,7 +12,7 @@ from addict import Dict
 from jsonpath_ng import parse
 from pydantic import BaseModel
 
-from autoext.commons import CommandLine
+from pyext.commons import CommandLine
 
 
 class File(object):

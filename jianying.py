@@ -10,8 +10,8 @@ from clicknium import clicknium as cc, ui, locator
 from dataclasses_json import dataclass_json, config
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
 
-from autoext.commons import UUID, ProcessManager
-from autoext.io import JsonFile, Directory, GitRepository
+from pyext.commons import UUID, ProcessManager
+from pyext.io import JsonFile, Directory, GitRepository
 
 
 @dataclass
@@ -1736,7 +1736,8 @@ class JianYingDesktop:
         """
         启动剪映桌面版
 
-        :return: 如果启动成功, 则返回True, 否则返回False
+        Returns:
+            bool: 如果成功启动剪映桌面版, 则返回True
         """
         subprocess.Popen(self.executable_path)
 
@@ -1799,7 +1800,8 @@ class JianYingDesktop:
         """
         选择文本轨道
 
-        :param track_index: 文本轨道索引,从上往下数,从1开始
+        Args:
+            track_index: 文本轨道索引,从上往下数,从1开始
         """
         self.cnstore_file.set_value_by_jsonpath(
             "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.value",
