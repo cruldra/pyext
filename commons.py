@@ -9,7 +9,46 @@ from dataclasses import dataclass
 import ctypes
 
 import psutil
+from PIL import ImageFont
 
+
+# region 文本处理
+class Text(object):
+    CHINESE_LINE_BREAKER = '[。！？]'
+    """中文断句符"""
+    ENGLISH_LINE_BREAKER = '[.!?]'
+    """英文断句符"""
+
+    def __init__(self, value: str):
+        self.value = value
+
+    def break_lines(self, pattern: str):
+        """
+        对文本进行断行
+
+        Args:
+            pattern: 分隔符
+
+        Returns:
+            list[Text]: 断行后的文本列表
+        """
+        return [Text(line) for line in re.split(pattern, self.value) if line]
+
+    def calculate_text_width(self, font_path: str, font_size: int):
+        """
+        计算文本的宽度
+
+        Args:
+            font_path: 字体文件路径
+            font_size: 字体大小
+
+        Returns:
+            tuple[int, int]: 宽度, 高度
+        """
+        font = ImageFont.truetype(font_path, font_size)
+        width, height = font.getbbox(self.value)[2:]
+        return width, height
+# endregion
 
 # region 对象工具
 class Objects(object):

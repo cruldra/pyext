@@ -1,18 +1,344 @@
 import json
+import logging
 import os.path
 import shutil
+import textwrap
 import threading
 import time
+from enum import Enum
 from pathlib import Path as PathlibPath
-from typing import TypeVar, Type
+from typing import TypeVar, Type, Optional
 import http.server
 import socketserver
+
+import pysubs2
 import yaml
 from addict import Dict
+from docker import DockerClient
 from jsonpath_ng import parse
+from langdetect import detect, LangDetectException
 from pydantic import BaseModel
 
-from pyext.commons import CommandLine
+from pyext.commons import CommandLine, Text
+
+TF = TypeVar('TF', bound='File')
+TPM = TypeVar('TPM', bound=BaseModel)
+TAF = TypeVar('TAF', bound='AudioFile')
+TSBT = TypeVar('TSBT', bound='SubtitleFile')
+
+
+# region ffmpeg
+class Ffmpeg(object):
+
+    def __init__(self):
+        super().__init__()
+
+    def add_subtitle_to_video(self, video_file: 'VideoFile', subtitle_file: 'SubtitleFile',
+                              new_name: str, font_directory: str) -> 'VideoFile':
+        """
+        为视频添加字幕
+
+        Args:
+            video_file: 视频文件
+            subtitle_file: 字幕文件
+            new_name: 新文件名
+            font_directory: 字体目录
+
+        Returns:
+            新的视频文件
+        """
+        raise NotImplementedError()
+
+    def video_to_audio(self, video_file: 'VideoFile', audio_type: Type[TAF]) -> TAF:
+        """
+        将视频文件转换为音频文件
+
+        Args:
+            video_file: 视频文件
+            audio_type: 音频文件类型
+
+        Returns:
+            音频文件
+        """
+        raise NotImplementedError()
+
+    def srt_to_ass(self, srt_file: 'SrtSubtitleFile') -> 'AssSubtitleFile':
+        """
+        srt字幕转ass字幕
+        """
+        raise NotImplementedError()
+
+
+class DockerFfmpeg(Ffmpeg):
+    def __init__(self, docker_client: DockerClient, ffmpeg_image: str = "ffmpeg:1.0"):
+        """
+        使用Docker运行ffmpeg
+        """
+        super().__init__()
+        self.docker_client = docker_client
+        """docker客户端"""
+        self.ffmpeg_image = ffmpeg_image
+        """使用的docker镜像"""
+
+    def video_to_audio(self, video_file: 'VideoFile', audio_type: Type[TAF]) -> TAF:
+        command = (
+            f"-y -i /tmp_app/{video_file.path.name} -q:a 0 -map a /tmp_app/{video_file.path.stem}.{audio_type.suffix}"
+        )
+        full_command = (
+            f"docker run --rm -it -v {str(video_file.path.parent.absolute())}:/tmp_app {self.ffmpeg_image} {command}"
+        )
+        logging.info(f"使用以下命令行先将视频文件转换为音频文件: {full_command}")
+        logs = (
+            self.docker_client.containers.run(
+                self.ffmpeg_image,
+                command,
+                volumes={str(video_file.path.parent.absolute()): {"bind": "/tmp_app", "mode": "rw"}},
+                remove=True,
+                tty=True,
+                stdin_open=True,
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        logging.info(f"将视频文件转换为音频文件的日志: {logs}")
+        if audio_type == Mp3File:
+            return Mp3File(str(video_file.path.parent / f"{video_file.path.stem}.{Mp3File.suffix}"))
+        else:
+            raise ValueError(f"不支持的音频文件类型: {audio_type}")
+
+    def srt_to_ass(self, srt_file: 'SrtSubtitleFile') -> 'AssSubtitleFile':
+        command = f'-y -i /tmp_app/{srt_file.path.name} /tmp_app/{srt_file.path.stem}.ass'
+        full_command = (
+            f"docker run --rm -it -v {str(srt_file.path.parent.absolute())}:/tmp_app {self.ffmpeg_image} {command}"
+        )
+        logging.info(f"使用以下命令行将srt字幕文件转换为ass字幕文件: {full_command}")
+        logs = self.docker_client.containers.run(
+            self.ffmpeg_image,
+            command,
+            volumes={str(srt_file.path.parent.absolute()): {'bind': '/tmp_app', 'mode': 'rw'}},
+            remove=True,
+            tty=True,
+            stdin_open=True
+        ).decode('utf-8').strip()
+        logging.info(f"将srt字幕文件转换为ass字幕文件的日志: {logs}")
+        return AssSubtitleFile(str(srt_file.path.parent / f"{srt_file.path.stem}.ass"))
+
+    def add_subtitle_to_video(self, video_file: 'VideoFile', subtitle_file: 'SubtitleFile',
+                              new_name: str, font_directory: str) -> 'VideoFile':
+        command = (
+            f"-y -i /tmp_app/{video_file.path.name} -vf 'ass=/tmp_app/{subtitle_file.path.name}' -c:a copy /tmp_app/{new_name}"
+        )
+        full_command = (
+            f"docker run --rm -it -v {str(video_file.path.parent.absolute())}:/tmp_app {self.ffmpeg_image} {command}"
+        )
+        logging.info(f"使用以下命令行为视频添加字幕: {full_command}")
+        logs = (
+            self.docker_client.containers.run(
+                self.ffmpeg_image,
+                command,
+                volumes={str(video_file.path.parent.absolute()): {"bind": "/tmp_app", "mode": "rw"},
+                         font_directory: {"bind": "/usr/local/share/fonts/", "mode": "rw"},
+                         },
+                remove=True,
+                tty=True,
+                stdin_open=True,
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        logging.info(f"为视频添加字幕的日志: {logs}")
+        return VideoFile(str(video_file.path.parent / new_name))
+
+
+# endregion
+
+# region aeneas
+class LanguageCode(str, Enum):
+    """
+    aeneas支持的语言代码
+    """
+    AFR = 'afr'
+    AMH = 'amh'
+    ARA = 'ara'
+    ARG = 'arg'
+    ASM = 'asm'
+    AZE = 'aze'
+    BEN = 'ben'
+    BOS = 'bos'
+    BUL = 'bul'
+    CAT = 'cat'
+    CES = 'ces'
+    CMN = 'cmn'
+    """中文普通话"""
+    CYM = 'cym'
+    DAN = 'dan'
+    DEU = 'deu'
+    ELL = 'ell'
+    ENG = 'eng'
+    EPO = 'epo'
+    EST = 'est'
+    EUS = 'eus'
+    FAS = 'fas'
+    FIN = 'fin'
+    FRA = 'fra'
+    GLA = 'gla'
+    GLE = 'gle'
+    GLG = 'glg'
+    GRC = 'grc'
+    GRN = 'grn'
+    GUJ = 'guj'
+    HEB = 'heb'
+    HIN = 'hin'
+    HRV = 'hrv'
+    HUN = 'hun'
+    HYE = 'hye'
+    INA = 'ina'
+    IND = 'ind'
+    ISL = 'isl'
+    ITA = 'ita'
+    JBO = 'jbo'
+    JPN = 'jpn'
+    KAL = 'kal'
+    KAN = 'kan'
+    KAT = 'kat'
+    KIR = 'kir'
+    KOR = 'kor'
+    KUR = 'kur'
+    LAT = 'lat'
+    LAV = 'lav'
+    LFN = 'lfn'
+    LIT = 'lit'
+    MAL = 'mal'
+    MAR = 'mar'
+    MKD = 'mkd'
+    MLT = 'mlt'
+    MSA = 'msa'
+    MYA = 'mya'
+    NAH = 'nah'
+    NEP = 'nep'
+    NLD = 'nld'
+    NOR = 'nor'
+    ORI = 'ori'
+    ORM = 'orm'
+    PAN = 'pan'
+    PAP = 'pap'
+    POL = 'pol'
+    POR = 'por'
+    RON = 'ron'
+    RUS = 'rus'
+    SIN = 'sin'
+    SLK = 'slk'
+    SLV = 'slv'
+    SPA = 'spa'
+    SQI = 'sqi'
+    SRP = 'srp'
+    SWA = 'swa'
+    SWE = 'swe'
+    TAM = 'tam'
+    TAT = 'tat'
+    TEL = 'tel'
+    THA = 'tha'
+    TSN = 'tsn'
+    TUR = 'tur'
+    UKR = 'ukr'
+    URD = 'urd'
+    VIE = 'vie'
+    YUE = 'yue'
+    ZHO = 'zho'
+    """中文"""
+
+    @classmethod
+    def from_langdetect(cls, code: str) -> Optional['LanguageCode']:
+        mapping = {
+            'en': cls.ENG,
+            'fr': cls.FRA,
+            'zh-cn': cls.CMN,
+            'ru': cls.RUS,
+            'ja': cls.JPN,
+            # 添加更多映射...
+        }
+        return mapping.get(code)
+
+
+class Aeneas(object):
+    def __init__(self):
+        super().__init__()
+
+    @classmethod
+    def detect_language(cls, text: str) -> LanguageCode | None:
+        """
+        检测文本的语言
+
+        Args:
+            text: 文本
+
+        Returns:
+            语言代码
+        """
+        try:
+            return detect(text)
+        except LangDetectException:
+            return None
+
+    # region 强制对齐音频和文本
+    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None) -> 'SrtSubtitleFile':
+        """
+        将音频文件与文本强制对齐
+
+        Args:
+            audio_file: 音频文件
+            text: 文本
+            language_code: 语言代码,如果为None,则自动检测
+
+        Returns:
+            srt字幕文件
+        """
+        raise NotImplementedError()
+
+    # endregion
+
+
+class DockerAeneas(Aeneas):
+    def __init__(self, docker_client: DockerClient, aeneas_image: str = "dongjak/aeneas"):
+        """
+        使用Docker运行aeneas
+        """
+        super().__init__()
+        self.docker_client = docker_client
+        """docker客户端"""
+        self.aeneas_image = aeneas_image
+        """使用的docker镜像"""
+
+    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None) -> 'SrtSubtitleFile':
+        language_code = language_code or LanguageCode.from_langdetect(self.detect_language(text))
+        content_text_file = File(str(audio_file.path.parent / f"{audio_file.path.stem}-content.txt"))
+        content_text_file.write_content(text)
+        command = (
+            f"bash -c \"source ~/miniconda3/etc/profile.d/conda.sh; "
+            f"conda activate aeneas; "
+            f"python -m aeneas.tools.execute_task "
+            f"/tmp_app/{audio_file.path.name} /tmp_app/{audio_file.path.stem}-content.txt "
+            f"'task_language={language_code.value}|os_task_file_format=srt|is_text_type=plain' "
+            f"/tmp_app/{audio_file.path.stem}.srt;\""
+        )
+        local_mapping_dir = str(audio_file.path.parent.absolute())
+        full_command = (
+            f"docker run --rm -it -v {local_mapping_dir}:/tmp_app {self.aeneas_image} {command}"
+        )
+        logging.info(f"使用以下命令行先将音频文件与文本强制对齐: {full_command}")
+        logs = self.docker_client.containers.run(
+            self.aeneas_image,
+            command,
+            volumes={local_mapping_dir: {'bind': '/tmp_app', 'mode': 'rw'}},
+            remove=True,
+            tty=True,
+            stdin_open=True
+        ).decode('utf-8').strip()
+        logging.info(f"将音频文件与文本强制对齐的日志: {logs}")
+        return SrtSubtitleFile(str(audio_file.path.parent / f"{audio_file.path.stem}.srt"))
+
+
+# endregion
 
 
 class File(object):
@@ -23,7 +349,8 @@ class File(object):
         """
         写入文本内容到该文件中
 
-        :param content: 文本内容
+        Args:
+            content: 文本内容
         """
         with self.path.open("w", encoding='utf-8') as f:
             f.write(content)
@@ -51,9 +378,122 @@ class File(object):
         return File(str(target_path))
 
 
-TF = TypeVar('TF', bound=File)
-TPM = TypeVar('TPM', bound=BaseModel)
+# region 字幕文件
 
+class SubtitleFile(File):
+
+    def __init__(self, path: str):
+        super().__init__(path)
+
+
+class SrtSubtitleFile(SubtitleFile):
+    def __init__(self, path: str):
+        super().__init__(path)
+
+
+class AssSubtitleFile(SubtitleFile):
+    def __init__(self, path: str):
+        super().__init__(path)
+        self.subs = pysubs2.load(path)
+
+    def set_resolution(self, width: int, height: int):
+        """
+        设置分辨率
+
+        Args:
+            width: 宽度
+            height: 高度
+        """
+        self.subs.info["PlayResX"] = str(width)
+        self.subs.info["PlayResY"] = str(height)
+        self.subs.save(str(self.path))
+
+    def create_style(self, style_name: str, **kwargs):
+        """
+        创建样式
+
+        Args:
+            style_name: 样式名
+            **kwargs: 样式参数
+        """
+        self.subs.styles[style_name] = pysubs2.SSAStyle(**kwargs)
+        self.subs.save(str(self.path))
+
+    def apply_style(self, style_name: str, events_filter: callable = lambda event: True):
+        """
+        应用样式
+
+        Args:
+            style_name: 样式名
+            events_filter: 仅对符合条件的事件应用样式
+        """
+        for event in self.subs.events:
+            if isinstance(event, pysubs2.SSAEvent) and events_filter(event):
+                event.style = style_name
+        self.subs.save(str(self.path))
+
+    def set_max_width(self, max_width: int):
+        """
+        设置最大宽度
+
+        Args:
+            max_width: 最大宽度
+        """
+        new_events = []
+        for i, event in enumerate(self.subs.events):
+            lines = textwrap.wrap(event.text .strip(), width=max_width)
+            new_line = r"\N".join(lines)
+            new_events.append(
+                pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=new_line))
+            #for line in lines:
+
+                #text_width, text_height = Text(line).calculate_text_width( "resources/fonts/华文细黑.ttf", 36)
+                #pos_x = (1080 - text_width) // 2
+                #new_line = f"{{\\\\an1\\\\pos({pos_x},{line_start_y})}}" + line
+                # new_events.append(
+                #     pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=new_line))
+                #line_start_y += text_height
+        self.subs.events = new_events
+        self.subs.save(str(self.path))
+# endregion
+
+# region 视频文件
+
+
+class VideoFile(File):
+
+    def __init__(self, path: str):
+        super().__init__(path)
+
+    # def extract_audio(self, dest_dir:str, audio_name:str, audio_format:Type[TAF])->TAF:
+    #     """
+    #     提取音频
+    #
+    #     Args:
+    #         dest_dir: 提取到的音频文件放置的目录
+    #         audio_name: 音频文件名
+    #         audio_format: 音频文件类型
+    #     """
+    #     CommandLine.run(f"ffmpeg -i {self.path} -q:a 0 -map a {output_path}")
+
+
+# endregion
+
+
+# region 音频文件
+class AudioFile(File):
+    def __init__(self, path: str):
+        super().__init__(path)
+
+
+class Mp3File(AudioFile):
+    suffix = "mp3"
+
+    def __init__(self, path: str):
+        super().__init__(path)
+
+
+# endregion
 
 # region yaml文件
 class YamlFile(File):
@@ -94,7 +534,6 @@ class JsonFile(File):
         """
         with open(self.path, 'r', encoding="utf-8") as file:
             return dataclass.from_json(file.read())
-
 
     def write_pydanitc_model(self, model: TPM):
         """
