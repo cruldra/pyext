@@ -653,9 +653,13 @@ class Directory(object):
         将该目录作为静态文件服务器
 
         静态文件服务会在后台运行,不会阻塞当前线程
-        :param host: 主机
-        :param port: 端口
-        :return: 服务器对象
+        Args:
+            host: 主机
+            port: 端口
+
+        Returns:
+            httpd: http服务器
+            server_thread: 服务器线程
         """
         directory = os.path.abspath(self.path)
 
