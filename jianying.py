@@ -2035,11 +2035,12 @@ class JianYingDesktop:
                 rf'{str(self.locator_root_path)}/pyautogui/jianyingpro_img/generate.png',
                 confidence=0.8)
             image_location = wait_add_digital_human_button()
-            # 移动鼠标到"添加数字人"tab标签的中心位置
+            # 移动鼠标到"添加数字人"按钮的中心位置
             image_center_point = pyautogui.center(image_location)
             center_point_x, center_point_y = image_center_point
             time.sleep(1)
             pyautogui.click(center_point_x, center_point_y)
+            print(f"在{center_point_x},{center_point_y}上点击了添加数字人按钮")
             # 现在去草稿下面的数字人目录等mp4文件出来
             # 可能会有多个文件,按创建时间和大小排序，然后取第一个
             # self.dr
