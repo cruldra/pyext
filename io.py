@@ -441,20 +441,22 @@ class AssSubtitleFile(SubtitleFile):
         """
         new_events = []
         for i, event in enumerate(self.subs.events):
-            lines = textwrap.wrap(event.text .strip(), width=max_width)
+            lines = textwrap.wrap(event.text.strip(), width=max_width)
             new_line = r"\N".join(lines)
             new_events.append(
                 pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=new_line))
-            #for line in lines:
+            # for line in lines:
 
-                #text_width, text_height = Text(line).calculate_text_width( "resources/fonts/华文细黑.ttf", 36)
-                #pos_x = (1080 - text_width) // 2
-                #new_line = f"{{\\\\an1\\\\pos({pos_x},{line_start_y})}}" + line
-                # new_events.append(
-                #     pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=new_line))
-                #line_start_y += text_height
+            # text_width, text_height = Text(line).calculate_text_width( "resources/fonts/华文细黑.ttf", 36)
+            # pos_x = (1080 - text_width) // 2
+            # new_line = f"{{\\\\an1\\\\pos({pos_x},{line_start_y})}}" + line
+            # new_events.append(
+            #     pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=new_line))
+            # line_start_y += text_height
         self.subs.events = new_events
         self.subs.save(str(self.path))
+
+
 # endregion
 
 # region 视频文件
@@ -667,14 +669,15 @@ class Directory(object):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, directory=directory, **kwargs)
 
-        httpd = socketserver.TCPServer(("", port), Handler)
+        httpd = socketserver.TCPServer((host, port), Handler)
         # with socketserver.TCPServer(("", port), Handler) as httpd:
         #     print(f"Serving at port {port}")
         #     httpd.serve_forever()
-        server_thread = threading.Thread(target=httpd.serve_forever)
-        server_thread.daemon = True
-        server_thread.start()
-        return httpd, server_thread
+        # server_thread = threading.Thread(target=httpd.serve_forever)
+        # server_thread.daemon = True
+        # server_thread.start()
+        # return httpd, server_thread
+        httpd.serve_forever()
 
 
 # endregion
