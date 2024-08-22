@@ -345,6 +345,12 @@ class File(object):
     def __init__(self, path: str):
         self.path = PathlibPath(path)
 
+    def exists(self):
+        return self.path.exists()
+
+    def delete(self):
+        self.path.unlink()
+
     def write_content(self, content: str):
         """
         写入文本内容到该文件中
@@ -359,7 +365,8 @@ class File(object):
         """
         读取文件内容
 
-        :return: 文件内容
+        Returns:
+            文件内容
         """
         with self.path.open("r", encoding='utf-8') as f:
             return f.read()
@@ -524,11 +531,24 @@ class JsonFile(File):
     def __init__(self, path: str):
         super().__init__(path)
 
+    def read_dict(self) -> dict[str, any]:
+        """
+        读取文件内容并将其转换为字典对象
+        """
+        with open(self.path, 'r', encoding="utf-8") as file:
+            return json.load(file)
+
+    def write_dict(self, dict: dict[str, any]):
+        """
+        将字典对象转换为json字符串并写入文件
+        """
+        self.write_content(json.dumps(dict, indent=4, ensure_ascii=False))
+
     def write_dataclass_json_obj(self, obj):
         """
         对于使用了`@dataclass_json`的数据类对象,将其转换为json字符串并写入文件
         """
-        self.write_content(obj.to_json(indent=4))
+        self.write_content(obj.to_json(indent=4, ensure_ascii=False))
 
     def read_dataclass_json_obj(self, dataclass):
         """

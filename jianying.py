@@ -1747,7 +1747,7 @@ class DraftContent:
 # region 剪映草稿
 class JianYingDraft:
 
-    def __init__(self, name: str, meta: DraftMetaInfo = DraftMetaInfo(), content: DraftContent = DraftContent(),
+    def __init__(self, name: str, meta: DraftMetaInfo = None, content: DraftContent = None,
                  draft_root_path: str = None):
         """
         新建剪映草稿
@@ -1761,13 +1761,13 @@ class JianYingDraft:
         self.name = name
         """草稿名称"""
         self.draft_root_path = Path(draft_root_path)
-        self.meta = meta
+        self.meta = meta or DraftMetaInfo()
         self.meta.draft_name = name
         self.meta.draft_root_path = str(self.draft_root_path)
         """草稿元信息"""
         self.meta_json_file: JsonFile | None = None
         """草稿元信息JSON文件"""
-        self.content = content
+        self.content = content or DraftContent()
         self.content.id = self.meta.draft_id
         """草稿内容"""
         self.content_json_file: JsonFile | None = None
