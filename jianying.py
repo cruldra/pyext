@@ -1,4 +1,5 @@
 import json
+import logging
 import shutil
 import subprocess
 import time
@@ -13,8 +14,10 @@ from clicknium import clicknium as cc, ui, locator
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
 
-from pyext.commons import UUID, ProcessManager
+from pyext.commons import UUID, ProcessManager, IntRange
 from pyext.io import JsonFile, Directory, GitRepository
+
+logger = logging.getLogger(__name__)
 
 
 class TimeRange(BaseModel):
@@ -1796,6 +1799,21 @@ class JianYingDraft:
 
     # endregion
 
+    # region 根据轨道类型获取所有片段
+    def get_segments_by_track_type(self, type: str) -> List[Segment]:
+        """
+        根据轨道类型获取所有片段
+
+        Args:
+            type: 轨道类型
+
+        Returns:
+            List[Segment]: 片段列表
+        """
+        return [segment for track in self.content.tracks for segment in track.segments if track.type == type]
+
+    # endregion
+
     # region 添加文本轨道
     def add_text_track(self, text: str, max_length_per_segment: int):
         """
@@ -2037,37 +2055,49 @@ class JianYingDesktop:
 
     # endregion
 
-    def select_text_track(self, track_index: int):
+    # region 选择文本片段
+    def select_text_segment(self, index_range: IntRange):
         """
-        选择文本轨道
+        选择指定索引范围上的文本片段
 
         Args:
-            track_index: 文本轨道索引,从上往下数,从1开始
+            index_range: 文本片段索引范围
         """
-        self.cnstore_file.set_value_by_jsonpath(
-            "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.value",
-            str(track_index))
-        self.cnstore_file.set_value_by_jsonpath(
-            "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.excluded",
-            None)
-        ui(locator.jianyingpro.文本轨道).click()
+        # 先按下ctrl键
+        #pyautogui.keyDown("ctrl")
+        for index in index_range:
+            logger.info(f"选择文本片段: {index}")
+            self.cnstore_file.set_value_by_jsonpath(
+                "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.value",
+                str(index))
+            self.cnstore_file.set_value_by_jsonpath(
+                "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.excluded",
+                None)
+            text_segment = ui(locator.jianyingpro.文本轨道)
+            if index == index_range.start:#如果是第一个文本片段，需要先hover一下，然后按下ctrl键
+                text_segment.hover()
+                pyautogui.keyDown("ctrl")
+            text_segment.click()
+        # 释放ctrl键
+        pyautogui.keyUp("ctrl")
         # time.sleep(3)
         # ui(locator.jianyingpro.文本轨道1)
+    # endregion
 
     # region 添加数字人
-    def add_digital_human(self, text_track_index: int, digital_human_index: int):
+    def add_digital_human(self, index_range: IntRange, digital_human_index: int):
         """
         添加数字人
 
         Args:
-            text_track_index:   生成数字人需要一个文本轨道
+            index_range:   文本片段索引范围
             digital_human_index: 数字人索引
 
 
         Returns:
             如果数字人生成成功, 则返回数字人视频文件
         """
-        self.select_text_track(text_track_index)
+        self.select_text_segment(index_range)
 
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
         def wait_digital_human_tab():

@@ -11,6 +11,22 @@ import ctypes
 import psutil
 from PIL import ImageFont
 
+# region 数字范围
+class IntRange(object):
+    """
+    数字范围
+    """
+
+    def __init__(self, start: int, end: int):
+        self.start = start
+        self.end = end
+
+    def __contains__(self, item):
+        return self.start <= item <= self.end
+
+    def __iter__(self):
+        return iter(range(self.start, self.end + 1))
+# endregion
 
 # region 文本处理
 class Text(object):
