@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Union, Any, Optional
 
 import pyautogui
+import pyperclip
 from clicknium import clicknium as cc, ui, locator
 from dataclasses_json import dataclass_json, config
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
@@ -1780,6 +1781,7 @@ class JianYingDraft:
         删除草稿
         """
         shutil.rmtree(str(self.draft_root_path / self.name))
+
     def save(self, git_message: str = None):
         """
         保存草稿到指定目录
@@ -1897,6 +1899,36 @@ class JianYingDesktop:
         self.draft: JianYingDraft | None = None
         """客户端当前打开的草稿"""
 
+    # region 图文成片
+    def create_image_text_video(self, text):
+        window = cc.find_element(locator=locator.jianyingpro.剪映主窗口)
+        window.set_focus()
+        ui(locator.jianyingpro.图文成片).click()
+        ui(locator.jianyingpro.图片成片_自由编辑文案).click()
+        sciprt_input = cc.find_element(locator=locator.jianyingpro.图文成片_自由编辑文案_文案输入框)
+        pyperclip.copy(text)
+        sciprt_input.send_hotkey('^v')
+        # "生成视频"按钮定位不到,先定位到旁边的"选择声色"按钮,然后再向右移动
+        ui(locator.jianyingpro.图文成片_选择声音).hover()
+        pyautogui.moveRel(100, 0)
+        pyautogui.click()
+
+        @retry(stop=stop_after_delay(5), wait=wait_fixed(1))
+        def wait_options_window():
+            if not cc.is_existing(locator.jianyingpro.图文成片_点击生成视频按钮后出现的窗口):
+                raise Exception("图文成片_点击生成视频按钮后出现的窗口未打开")
+            return True
+
+        if wait_options_window():
+            image_location = pyautogui.locateOnScreen(
+                rf'{str(self.locator_root_path)}/pyautogui/jianyingpro_img/use_local_material.png',
+                confidence=0.8)
+            image_center_point = pyautogui.center(image_location)
+            center_point_x, center_point_y = image_center_point
+            pyautogui.click(center_point_x, center_point_y)
+
+    # endregion
+
     # region 打开剪映桌面版
     def start_process(self):
         """
@@ -1905,15 +1937,24 @@ class JianYingDesktop:
         Returns:
             bool: 如果成功启动剪映桌面版, 则返回True
         """
-        subprocess.Popen(self.executable_path)
+        # 已经启动则返回
+        if ProcessManager.is_process_running("JianyingPro.exe"):
+            started = True
+        else:
+            # 否则启动剪映桌面版,然后在15秒内每隔2秒检查是否启动成功
+            subprocess.Popen(self.executable_path)
 
-        @retry(stop=stop_after_delay(15), wait=wait_fixed(2))
-        def is_started():
-            if not ProcessManager.is_process_running("JianyingPro.exe"):
-                raise Exception("剪映桌面版启动失败")
-            return True
+            @retry(stop=stop_after_delay(15), wait=wait_fixed(2))
+            def is_started():
+                if not ProcessManager.is_process_running("JianyingPro.exe"):
+                    raise Exception("剪映桌面版启动失败")
+                return True
 
-        return is_started()
+            started = is_started()
+        # 如果启动成功且弹出了草稿列表异常提示窗口,则点击取消按钮
+        if started and cc.is_existing(locator.jianyingpro.草稿列表异常提示窗口):
+            ui(locator.jianyingpro.草稿列表异常窗口上的取消按钮).click()
+        return started
 
     # endregion
 
@@ -2032,8 +2073,9 @@ class JianYingDesktop:
             def wait_add_digital_human_button():
                 """在3秒内等待数字人列表加载完成后出现"添加数字人"按钮"""
                 return pyautogui.locateOnScreen(
-                rf'{str(self.locator_root_path)}/pyautogui/jianyingpro_img/generate.png',
-                confidence=0.8)
+                    rf'{str(self.locator_root_path)}/pyautogui/jianyingpro_img/generate.png',
+                    confidence=0.8)
+
             image_location = wait_add_digital_human_button()
             # 移动鼠标到"添加数字人"按钮的中心位置
             image_center_point = pyautogui.center(image_location)
@@ -2041,6 +2083,7 @@ class JianYingDesktop:
             time.sleep(1)
             pyautogui.click(center_point_x, center_point_y)
             print(f"在{center_point_x},{center_point_y}上点击了添加数字人按钮")
+
             # 现在去草稿下面的数字人目录等mp4文件出来
             # 可能会有多个文件,按创建时间和大小排序，然后取第一个
             # self.dr

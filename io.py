@@ -658,6 +658,30 @@ class Directory(object):
             file = File(str(file_path))
         return file
 
+    def get_file(self, file_name: str) -> File:
+        """
+        获取文件
+
+        :param file_name: 文件名
+        :return: 文件对象
+        """
+        return File(str(self.path / file_name))
+
+    def get_json_file(self, file_name: str) -> JsonFile:
+        """
+        获取json文件
+
+        :param file_name: 文件名
+        :return: json文件对象
+        """
+        return JsonFile(str(self.path / file_name))
+
+    def list_directories(self):
+        """
+        列出目录下的所有子目录
+        """
+        return [Directory(str(f)) for f in self.path.iterdir() if f.is_dir]
+
     def list_files(self):
         """
         列出目录下的所有文件
