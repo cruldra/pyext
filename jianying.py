@@ -1,152 +1,147 @@
+import json
 import shutil
 import subprocess
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import field
 from pathlib import Path
 from typing import List, Union, Any, Optional
 
 import pyautogui
 import pyperclip
 from clicknium import clicknium as cc, ui, locator
-from dataclasses_json import dataclass_json, config
+from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
 
 from pyext.commons import UUID, ProcessManager
 from pyext.io import JsonFile, Directory, GitRepository
 
 
-@dataclass
-class TimeRange:
+class TimeRange(BaseModel):
     """
     表示一个时间范围
     """
 
-    duration: int = 0
+    duration: Optional[int] = None
     """持续时间"""
 
-    start: int = 0
+    start: Optional[int] = None
     """开始时间"""
 
 
-@dataclass
-class ImageMaterial:
+class ImageMaterial(BaseModel):
     """
     图片素材
     """
 
-    create_time: int
+    create_time: Optional[int] = None
     """创建时间,Unix时间戳"""
-    duration: int
+    duration: Optional[int] = None
     """持续时间,以微秒为单位"""
 
-    extra_info: str
+    extra_info: Optional[str] = None
     """额外信息,例如文件名"""
 
-    file_Path: str
+    file_Path: Optional[str] = None
     """文件路径"""
 
-    height: int
+    height: Optional[int] = None
     """图片高度,以像素为单位"""
 
-    id: str
+    id: Optional[str] = None
     """图片素材的唯一标识符"""
 
-    import_time: int
+    import_time: Optional[int] = None
     """导入时间,Unix时间戳"""
 
-    import_time_ms: int
+    import_time_ms: Optional[int] = None
     """导入时间,以微秒为单位"""
 
-    item_source: int
+    item_source: Optional[str] = None
     """素材来源"""
 
-    md5: str
+    md5: Optional[str] = None
     """文件的MD5哈希值,用于校验"""
 
-    metetype: str
+    metetype: Optional[str] = None
     """素材类型,例如 "photo" """
 
-    roughcut_time_range: "TimeRange"
+    roughcut_time_range: Optional[TimeRange] = None
     """粗剪时间范围"""
 
-    sub_time_range: "TimeRange"
+    sub_time_range: Optional[TimeRange] = None
     """子时间范围"""
 
-    type: int
+    type: Optional[int] = None
     """类型,例如`0`代表图片素材"""
 
-    width: int
+    width: Optional[int] = None
     """图片宽度,以像素为单位"""
 
 
-@dataclass
-class DraftMaterial:
+class DraftMaterial(BaseModel):
     """
     表示草稿中的一个素材
     """
 
-    type: int
+    type: Optional[int] = None
     """素材类型"""
 
-    value: List[Union[ImageMaterial]] = field(default_factory=list)
+    value: Optional[List[Union[ImageMaterial]]] = None
     """素材列表"""
 
 
-@dataclass
-class DraftEnterpriseInfo:
+class DraftEnterpriseInfo(BaseModel):
     """
     企业信息
     """
 
-    draft_enterprise_extra: str = ""
+    draft_enterprise_extra: Optional[str] = None
     """企业额外信息"""
 
-    draft_enterprise_id: str = ""
+    draft_enterprise_id: Optional[str] = None
     """企业ID"""
 
-    draft_enterprise_name: str = ""
+    draft_enterprise_name: Optional[str] = None
     """企业名称"""
 
-    enterprise_material: List = field(default_factory=list)
+    enterprise_material: Optional[List] = None
     """企业材料"""
 
 
-@dataclass_json
-@dataclass
-class DraftMetaInfo:
+class DraftMetaInfo(BaseModel):
     """
     草稿元信息
     """
 
-    cloud_package_completed_time: str = ""
+    cloud_package_completed_time: Optional[str] = None
     """云端包完成时间"""
 
-    draft_cloud_capcut_purchase_info: str = ""
+    draft_cloud_capcut_purchase_info: Optional[str] = None
     """云端Capcut购买信息"""
 
-    draft_cloud_last_action_download: bool = False
+    draft_cloud_last_action_download: Optional[bool] = None
     """云端最后动作是否为下载"""
 
     draft_cloud_materials: List = field(default_factory=list)
     """云端材料"""
 
-    draft_cloud_purchase_info: str = ""
+    draft_cloud_purchase_info: Optional[str] = None
     """云端购买信息"""
 
-    draft_cloud_template_id: str = ""
+    draft_cloud_template_id: Optional[str] = None
     """云端模板ID"""
 
-    draft_cloud_tutorial_info: str = ""
+    draft_cloud_tutorial_info: Optional[str] = None
     """云端教程信息"""
 
-    draft_cloud_videocut_purchase_info: str = ""
+    draft_cloud_videocut_purchase_info: Optional[str] = None
     """云端视频剪辑购买信息"""
 
     draft_cover: str = "draft_cover.jpg"
     """草稿封面"""
 
-    draft_deeplink_url: str = ""
+    draft_deeplink_url: Optional[str] = None
     """草稿深度链接URL"""
 
     draft_enterprise_info: DraftEnterpriseInfo = field(default_factory=DraftEnterpriseInfo)
@@ -222,8 +217,7 @@ class DraftMetaInfo:
     """持续时间"""
 
 
-@dataclass
-class Type0Value:
+class Type0Value(BaseModel):
     creation_time: int
     """创建时间"""
 
@@ -249,8 +243,7 @@ class Type0Value:
     """排序类型"""
 
 
-@dataclass
-class Type1Value:
+class Type1Value(BaseModel):
     child_id: str
     """子ID"""
 
@@ -258,8 +251,7 @@ class Type1Value:
     """父ID"""
 
 
-@dataclass
-class DraftVirtualStoreItem:
+class DraftVirtualStoreItem(BaseModel):
     """
     草稿虚拟存储中的一个条目
     """
@@ -271,9 +263,7 @@ class DraftVirtualStoreItem:
     """值"""
 
 
-@dataclass_json
-@dataclass
-class DraftVirtualStore:
+class DraftVirtualStore(BaseModel):
     draft_materials: List[DraftMaterial] = field(default_factory=list)
     """草稿材料"""
 
@@ -282,8 +272,8 @@ class DraftVirtualStore:
 
 
 # region draft_content.json
-@dataclass
-class CanvasConfig:
+
+class CanvasConfig(BaseModel):
     height: int
     """画布高度"""
 
@@ -294,8 +284,7 @@ class CanvasConfig:
     """画布宽度"""
 
 
-@dataclass
-class Platform:
+class Platform(BaseModel):
     app_id: int = 3704
     """应用ID"""
 
@@ -321,8 +310,7 @@ class Platform:
     """操作系统版本"""
 
 
-@dataclass
-class Keyframes:
+class Keyframes(BaseModel):
     adjusts: List = field(default_factory=list)
     """调整"""
 
@@ -348,9 +336,7 @@ class Keyframes:
     """视频"""
 
 
-@dataclass_json
-@dataclass
-class Canvas:
+class Canvas(BaseModel):
     album_image: str = ""
     """专辑图像"""
 
@@ -360,7 +346,8 @@ class Canvas:
     color: str = ""
     """颜色"""
 
-    id: str = uuid.uuid4().hex
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
     """ID"""
 
     image: str = ""
@@ -382,13 +369,12 @@ class Canvas:
     """类型"""
 
 
-@dataclass_json
-@dataclass
-class AudioConfig:
+class AudioConfig(BaseModel):
     audio_channel_mapping: int = 0
     """音频通道映射"""
 
-    id: str = uuid.uuid4().hex
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
     """ID"""
 
     is_config_open: bool = False
@@ -398,13 +384,12 @@ class AudioConfig:
     """类型"""
 
 
-@dataclass_json
-@dataclass
-class SpeedConfig:
+class SpeedConfig(BaseModel):
     curve_speed: Optional[float] = None
     """曲线速度"""
 
-    id: str = uuid.uuid4().hex
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
     """ID"""
 
     mode: int = 0
@@ -417,9 +402,7 @@ class SpeedConfig:
     """类型"""
 
 
-@dataclass_json
-@dataclass
-class Crop:
+class Crop(BaseModel):
     lower_left_x: float = 0.0
     """左下角X坐标"""
 
@@ -445,9 +428,7 @@ class Crop:
     """右上角Y坐标"""
 
 
-@dataclass_json
-@dataclass
-class Matting:
+class Matting(BaseModel):
     flag: int = 0
     """标志"""
 
@@ -467,8 +448,7 @@ class Matting:
     """笔触"""
 
 
-@dataclass
-class Stable:
+class Stable(BaseModel):
     matrix_path: str = ""
     """矩阵路径"""
 
@@ -479,9 +459,7 @@ class Stable:
     """时间范围"""
 
 
-@dataclass_json
-@dataclass
-class VideoAlgorithm:
+class VideoAlgorithm(BaseModel):
     algorithms: List[str] = ()
     """算法"""
 
@@ -510,8 +488,7 @@ class VideoAlgorithm:
     """时间范围"""
 
 
-@dataclass
-class Photo:
+class Photo(BaseModel):
     aigc_type: str = "none"
     """AIGC类型"""
 
@@ -557,7 +534,8 @@ class Photo:
     height: int = 1536
     """高度"""
 
-    id: str = uuid.uuid4().hex
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
     """ID"""
 
     intensifies_audio_path: str = ""
@@ -651,13 +629,12 @@ class Photo:
     """宽度"""
 
 
-@dataclass_json
-@dataclass
-class VocalSeparation:
+class VocalSeparation(BaseModel):
     choice: int = 0
     """选择"""
 
-    id: str = uuid.uuid4().hex
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
     """ID"""
 
     production_path: str = ""
@@ -670,9 +647,7 @@ class VocalSeparation:
     """类型"""
 
 
-@dataclass_json
-@dataclass
-class Flip:
+class Flip(BaseModel):
     horizontal: bool = False
     """水平翻转"""
 
@@ -680,8 +655,7 @@ class Flip:
     """垂直翻转"""
 
 
-@dataclass
-class Scale:
+class Scale(BaseModel):
     x: float = 1.0
     """x轴缩放"""
 
@@ -689,8 +663,7 @@ class Scale:
     """y轴缩放"""
 
 
-@dataclass
-class Transform:
+class Transform(BaseModel):
     x: float = 0.0
     """x轴变换"""
 
@@ -698,8 +671,7 @@ class Transform:
     """y轴变换"""
 
 
-@dataclass
-class Clip:
+class Clip(BaseModel):
     alpha: float = 1.0
     """透明度"""
 
@@ -716,9 +688,7 @@ class Clip:
     """变换"""
 
 
-@dataclass_json
-@dataclass
-class HDRSettings:
+class HDRSettings(BaseModel):
     intensity: float = 1.0
     """强度"""
 
@@ -729,9 +699,7 @@ class HDRSettings:
     """尼特"""
 
 
-@dataclass_json
-@dataclass
-class ResponsiveLayout:
+class ResponsiveLayout(BaseModel):
     enable: bool = False
     """启用"""
 
@@ -748,9 +716,7 @@ class ResponsiveLayout:
     """垂直位置布局"""
 
 
-@dataclass_json
-@dataclass
-class UniformScale:
+class UniformScale(BaseModel):
     on: bool = True
     """启用"""
 
@@ -758,8 +724,7 @@ class UniformScale:
     """值"""
 
 
-@dataclass
-class Segment:
+class Segment(BaseModel):
     caption_info: Optional[str] = None
     """字幕信息"""
 
@@ -802,7 +767,8 @@ class Segment:
     hdr_settings: Optional[HDRSettings] = field(default_factory=HDRSettings)
     """HDR设置"""
 
-    id: str = uuid.uuid4().hex
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
     """ID"""
 
     intensifies_audio: bool = False
@@ -863,15 +829,15 @@ class Segment:
     """音量"""
 
 
-@dataclass
-class Track:
+class Track(BaseModel):
     attribute: int = 0
     """属性"""
 
     flag: int = 0
     """标志"""
 
-    id: str = UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')])
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
     """ID"""
 
     is_default_name: bool = True
@@ -887,12 +853,12 @@ class Track:
     """类型"""
 
 
-@dataclass
-class StickerAnimation:
+class StickerAnimation(BaseModel):
     animations: List[str] = field(default_factory=list)
     """动画"""
 
-    id: str = uuid.uuid4().hex
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
     """ID"""
 
     multi_language_current: str = "none"
@@ -902,8 +868,7 @@ class StickerAnimation:
     """类型"""
 
 
-@dataclass
-class CaptionTemplateInfo:
+class CaptionTemplateInfo(BaseModel):
     category_id: str = ""
     """分类ID"""
 
@@ -932,15 +897,12 @@ class CaptionTemplateInfo:
     """来源平台"""
 
 
-@dataclass_json
-@dataclass
-class ComboInfo:
+class ComboInfo(BaseModel):
     text_templates: List[str] = field(default_factory=list)
     """文本模板"""
 
 
-@dataclass
-class ShadowPoint:
+class ShadowPoint(BaseModel):
     x: float = 0.6363961030678928
     """x轴阴影点"""
 
@@ -948,8 +910,7 @@ class ShadowPoint:
     """y轴阴影点"""
 
 
-@dataclass
-class Words:
+class Words(BaseModel):
     end_time: List[str] = field(default_factory=list)
     """结束时间"""
 
@@ -960,38 +921,34 @@ class Words:
     """文本"""
 
 
-@dataclass
-class Solid:
+class Solid(BaseModel):
     alpha: float = None
     """透明度"""
 
-    color: List[float] = (1.0, 1.0, 1.0)
+    color: List[int] = (1, 1, 1)
     """颜色"""
 
 
-@dataclass
-class Content:
-    render_type: str = "solid"
+class Content(BaseModel):
+    render_type: str = None
     """渲染类型"""
 
     solid: Solid = field(default_factory=Solid)
     """实心"""
 
 
-@dataclass
-class Fill:
-    alpha: float = field(default_factory=float, metadata=config(exclude=lambda x: x == 0.0))
+class Fill(BaseModel):
+    alpha: Optional[float] = None
     """透明度"""
 
-    content: Content = field(default_factory=Content)
+    content: Optional[Content] = field(default_factory=Content)
     """内容"""
 
-    width: float = 0.0
+    width: Optional[float] = None
     """宽度"""
 
 
-@dataclass
-class Font:
+class Font(BaseModel):
     id: str = ""
     """字体ID"""
 
@@ -999,8 +956,7 @@ class Font:
     """字体路径"""
 
 
-@dataclass
-class Style:
+class Style(BaseModel):
     fill: Fill = field(default_factory=Fill)
     """填充"""
 
@@ -1016,13 +972,11 @@ class Style:
     strokes: Optional[List[Fill]] = None
     """笔触"""
 
-    useLetterColor: bool = False
+    useLetterColor: bool = None
     """使用字母颜色"""
 
 
-@dataclass_json
-@dataclass
-class TextContent:
+class TextContent(BaseModel):
     styles: List[Style] = field(default_factory=list)
     """样式"""
 
@@ -1030,8 +984,7 @@ class TextContent:
     """文本"""
 
 
-@dataclass
-class Text:
+class TextMaterial(BaseModel):
     add_type: int = 0
     """添加类型"""
 
@@ -1113,7 +1066,7 @@ class Text:
     font_resource_id: str = ""
     """字体资源ID"""
 
-    font_size: float = 15.0
+    font_size: float = None
     """字体大小"""
 
     font_source_platform: int = 0
@@ -1143,7 +1096,8 @@ class Text:
     has_shadow: bool = False
     """有阴影"""
 
-    id: str = UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')])
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
     """ID"""
 
     initial_scale: float = 1.0
@@ -1297,8 +1251,7 @@ class Text:
     """单词"""
 
 
-@dataclass
-class TTSMeta:
+class TTSMeta(BaseModel):
     text: str
     """
     文本内容
@@ -1321,16 +1274,14 @@ class TTSMeta:
     """
 
 
-@dataclass
-class VideoMeta:
+class VideoMeta(BaseModel):
     path: str
     """
     视频路径
     """
 
 
-@dataclass
-class VoiceInfo:
+class VoiceInfo(BaseModel):
     is_ai_clone_tone: bool
     """
     是否为AI克隆音调
@@ -1385,8 +1336,7 @@ class VoiceInfo:
     """
 
 
-@dataclass
-class DigitalHuman:
+class DigitalHuman(BaseModel):
     background: str
     """
     背景
@@ -1437,8 +1387,7 @@ class DigitalHuman:
     """
 
 
-@dataclass
-class Materials:
+class Materials(BaseModel):
     ai_translates: List = field(default_factory=list)
     """AI翻译"""
 
@@ -1550,7 +1499,7 @@ class Materials:
     text_templates: List = field(default_factory=list)
     """文本模板"""
 
-    texts: List[Text] = field(default_factory=list)
+    texts: List[TextMaterial] = field(default_factory=list)
     """文本"""
 
     time_marks: List = field(default_factory=list)
@@ -1575,8 +1524,7 @@ class Materials:
     """人声分离"""
 
 
-@dataclass
-class Config:
+class Config(BaseModel):
     adjust_max_index: int = 1
     """调整最大索引"""
 
@@ -1650,95 +1598,98 @@ class Config:
     """缩放信息参数"""
 
 
-@dataclass_json
-@dataclass
-class DraftContent:
-    canvas_config: CanvasConfig = field(default_factory=lambda: CanvasConfig(
-        height=1080,
-        ratio="original",
-        width=1920
-    ))
+class DraftContent(BaseModel):
+    # canvas_config: CanvasConfig = field(default_factory=lambda: CanvasConfig(
+    #     height=1080,
+    #     ratio="original",
+    #     width=1920
+    # ))
+    canvas_config: Optional[CanvasConfig] = None
     """画布配置"""
 
-    color_space: int = -1
+    color_space: Optional[int] = None
     """色彩空间"""
 
-    config: Config = field(default_factory=Config)
+    config: Optional[Config] = None
     """配置"""
 
-    cover: Any = None
+    cover: Optional[str] = None
     """封面"""
 
-    create_time: int = 0
+    create_time: Optional[int] = None
     """创建时间"""
 
-    duration: int = 3000000
+    duration: Optional[int] = None
     """持续时间(微秒)"""
 
-    extra_info: Any = None
+    extra_info: Optional[Any] = None
     """额外信息"""
 
-    fps: float = 30.0
+    fps: Optional[float] = None
     """FPS"""
 
-    free_render_index_mode_on: bool = False
+    free_render_index_mode_on: Optional[bool] = None
     """自由渲染索引模式开启"""
 
-    group_container: Any = None
+    group_container: Optional[Any] = None
     """组容器"""
 
-    id: str = uuid.uuid4().hex
-    """ID"""
+    # id: str = field(
+    #     default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
+    # """ID"""
+    id: Optional[str] = None
 
-    keyframe_graph_list: List = field(default_factory=list)
+    keyframe_graph_list: Optional[List] = None
     """关键帧图表列表"""
 
-    keyframes: Keyframes = field(default_factory=Keyframes)
+    keyframes: Optional[Keyframes] = None
     """关键帧"""
 
-    last_modified_platform: Platform = field(default_factory=Platform)
+    last_modified_platform: Optional[Platform] = None
     """最后修改平台"""
 
     materials: Materials = field(default_factory=Materials)
     """素材"""
 
-    mutable_config: Any = None
+    mutable_config: Optional[Any] = None
     """可变配置"""
 
-    name: str = ""
+    name: Optional[str] = None
     """名称"""
 
-    new_version: str = "110.0.0"
+    new_version: Optional[str] = None
     """新版本"""
 
-    platform: Platform = field(default_factory=Platform)
+    platform: Optional[Platform] = None
     """平台"""
 
-    relationships: List = field(default_factory=list)
+    relationships: Optional[List] = None
     """关系"""
 
-    render_index_track_mode_on: bool = False
+    render_index_track_mode_on: Optional[bool] = None
     """渲染索引轨道模式开启"""
 
-    retouch_cover: Any = None
+    retouch_cover: Optional[Any] = None
     """修饰封面"""
 
-    source: str = "default"
+    source: Optional[str] = None
     """来源"""
 
-    static_cover_image_path: str = ""
+    static_cover_image_path: Optional[str] = None
     """静态封面图片路径"""
 
-    time_marks: Any = None
+    time_marks: Optional[Any] = None
     """时间标记"""
 
-    tracks: List[Track] = field(default_factory=list)
+    tracks: List[Track] = field(default_factory=lambda: [Track(
+        type="video",
+    )])
     """轨道"""
 
-    update_time: int = 0
+    update_time: Optional[int] = None
     """更新时间"""
 
-    version: int = 360000
+    version: Optional[int] = None
     """版本"""
 
 
@@ -1769,104 +1720,178 @@ class JianYingDraft:
         self.meta_json_file: JsonFile | None = None
         """草稿元信息JSON文件"""
         self.content = content or DraftContent()
-        self.content.id = self.meta.draft_id
+        # self.content.id = self.meta.draft_id
         """草稿内容"""
         self.content_json_file: JsonFile | None = None
         """草稿内容JSON文件"""
         self.git_repo = None
         """Git仓库"""
 
+    # region 删除草稿
     def delete(self):
         """
         删除草稿
         """
         shutil.rmtree(str(self.draft_root_path / self.name))
 
+    # endregion
+
+    # region 保存草稿
     def save(self, git_message: str = None):
         """
         保存草稿到指定目录
 
-        :param git_message: 提交消息,如果指定了git_message,则会将草稿目录初始化为git仓库并提交,如果已经是git仓库,则只提交
+        Args:
+            git_message: 提交消息,如果指定了git_message,则会将草稿目录初始化为git仓库并提交,如果已经是git仓库,则只提交
         """
         directory = Directory(str(self.draft_root_path / self.name))
         self.meta_json_file: JsonFile = directory.new_file("draft_meta_info.json")
-        self.meta.draft_fold_path = str(directory.path)
-        self.meta_json_file.write_dataclass_json_obj(self.meta)
+        self.meta.draft_fold_path = str(directory.path).replace("\\", "/")
+        self.meta_json_file.write_pydanitc_model(self.meta)
         self.content_json_file: JsonFile = directory.new_file("draft_content.json")
-        self.content_json_file.write_dataclass_json_obj(self.content)
+        self.content_json_file.write_pydanitc_model(self.content)
+
+        # directory.new_folders("common_attachment")
+        # directory.new_folders("matting")
+        # directory.new_folders("Resources\\audioAlg")
+        # directory.new_folders("Resources\\videoAlg")
+        # directory.new_folders("smart_crop")
+        #
+        # attachment_pc_common_json_file = JsonFile(str(directory.path / "attachment_pc_common.json"))
+        # if not attachment_pc_common_json_file.exists():
+        #     attachment_pc_common_json_file.write_content(
+        #         """{"ai_packaging_infos":[],"ai_packaging_report_info":{"caption_id_list":[],"task_id":"","text_style":"","tos_id":"","video_category":""},"commercial_music_category_ids":[],"pc_feature_flag":0,"recognize_tasks":[],"template_item_infos":[],"unlock_template_ids":[]}""")
+        #
+        # draft_agency_config_json_file = JsonFile(str(directory.path / "draft_agency_config.json"))
+        # if not draft_agency_config_json_file.exists():
+        #     draft_agency_config_json_file.write_content(
+        #         """{"marterials":null,"use_converter":false,"video_resolution":720}""")
+        #
+        # draft_biz_config_json_file = JsonFile(str(directory.path / "draft_biz_config.json"))
+        # if not draft_biz_config_json_file.exists():
+        #     draft_biz_config_json_file.write_content(""" """)
         if git_message:
-            self.git_repo = GitRepository(str(directory.path))
+            self.git_repo = GitRepository(str(directory.path), ignores=[
+                # 忽略除了draft_meta_info.json和draft_content.json以外的所有文件
+                "*",
+                "!draft_meta_info.json",
+                "!draft_content.json",
+                "!attachment_pc_common.json",
+                "!draft.extra",
+                "!draft_agency_config.json",
+                "!draft_biz_config.json",
+                "draft_settings",
+                "!.gitignore"
+            ])
             self.git_repo.commit(git_message)
 
+    # endregion
+
+    # region 从本地加载草稿
     def reload(self):
         """
         重新加载草稿内容
         """
         self.content = self.content_json_file.read_dataclass_json_obj(DraftContent)
 
-    def add_text_track(self, text: str, font_size: float = 12.0, scale: float = 1.0, line_spacing: float = 0.02):
+    # endregion
+
+    # region 添加文本轨道
+    def add_text_track(self, text: str, max_length_per_segment: int):
         """
         添加文本轨道
 
+        在剪映客户端中添加一个文本轨道的逻辑是:
+
+        1. 在tracks中添加一个 Track
+        2. 如果有多个文本片段,则创建Segment然后添加到Track的segments中
+        3. 为每个Segment在materials.texts中添加一个 TextMaterial
+        4. 为每个Segment在materials.material_animations中添加一个 StickerAnimation
+        5. 每个Segment的extra_material_refs中添加对应的StickerAnimation的id
+        6. 每个Segment的material_id指向对应的TextMaterial的id
+
         Args:
             text: 文本内容
-            font_size: 字体大小
-            scale: 缩放比例
-            line_spacing: 行间距
+            max_length_per_segment: 每个片段的最大长度
         """
-        sticker_animation = StickerAnimation()
-        text_content = TextContent(
-            text=text,
-            styles=[
-                Style(
-                    size=font_size,
-                    range=[0, len(text)]
-                )
-            ]
-        )
-        text = Text(
-            content=text_content.to_json(),
-            font_size=font_size,
-            line_spacing=line_spacing,
-        )
+        font_size: float = 12.0
+        scale: float = 1.0
+        line_spacing: float = 0.02
+        # 根据每个片段的最大长度获取轨道中每个片段的文本
+        segment_texts = [text[i:i + max_length_per_segment] for i in range(0, len(text), max_length_per_segment)]
         text_track = Track(
             segments=[
-                Segment(
-                    clip=Clip(
-                        scale=Scale(
-                            x=scale,
-                            y=scale
-                        )
-                    ),
-                    extra_material_refs=[sticker_animation.id],
-                    material_id=text.id,
-                    target_timerange=TimeRange(
-                        duration=3000000,
-                    ),
-                    hdr_settings=None,
-                    source_timerange=None,
-                    enable_adjust=False,
-                    enable_lut=False,
-                    # render_index=14001,
-                )
+
             ],
             type="text"
         )
-        self.content.materials.material_animations.append(sticker_animation)
-        self.content.materials.texts.append(text)
+        for i, segment_text in enumerate(segment_texts):
+            sticker_animation = StickerAnimation()
+            text_content = TextContent(
+                text=segment_text,
+                styles=[
+                    Style(
+                        size=font_size,
+                        range=[0, len(segment_text)]
+                    )
+                ]
+            )
+            text_material = TextMaterial(
+                content=text_content.model_dump_json(
+                    exclude_none=True,
+                ),
+                font_size=font_size,
+                line_spacing=line_spacing,
+            )
+            segment = Segment(
+                clip=Clip(
+                    scale=Scale(
+                        x=scale,
+                        y=scale
+                    )
+                ),
+                render_index=14003,
+                extra_material_refs=[sticker_animation.id],
+                material_id=text_material.id,
+                target_timerange=TimeRange(
+                    start=int(i * 3000000),
+                    duration=3000000,
+                ),
+                hdr_settings=None,
+                source_timerange=None,
+                enable_adjust=False,
+                enable_lut=False,
+                # render_index=14001,
+            )
+            self.content.materials.material_animations.append(sticker_animation)
+            self.content.materials.texts.append(text_material)
+            text_track.segments.append(segment)
+        # if self.content.color_space == -1:
+        #     self.content.color_space = 0
+        # 计算新的视频时长
+        duration = 3000000 * len(segment_texts)
+        if self.content.duration is None:
+            self.content.duration = duration
+        else:
+            self.content.duration += duration
+        # self.content.materials.material_animations按照id desc排序
+        # self.content.materials.material_animations.sort(key=lambda x: x.id, reverse=True)
+        # self.content.materials.texts.sort(key=lambda x: x.id, reverse=True)
         self.content.tracks.append(text_track)
+    # endregion
 
-    def get_digit_human(self, index: int) -> DigitalHuman:
-        """
-        获取草稿中的数字人素材
 
-        Args:
-            index: 数字人索引
+def get_digit_human(self, index: int) -> DigitalHuman:
+    """
+    获取草稿中的数字人素材
 
-        Returns:
-            DigitalHuman: 数字人
-        """
-        return self.content.materials.digital_humans[index]
+    Args:
+        index: 数字人索引
+
+    Returns:
+        DigitalHuman: 数字人
+    """
+    return self.content.materials.digital_humans[index]
 
 
 # endregion

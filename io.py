@@ -563,7 +563,7 @@ class JsonFile(File):
 
         :param model: Pydantic 模型
         """
-        self.write_content(model.model_dump_json(indent=4))
+        self.write_content(model.model_dump_json(indent=4, exclude_none=True))
 
     def set_value_by_jsonpath(self, json_path, new_value):
         """
@@ -646,8 +646,11 @@ class Directory(object):
         """
         创建一个新文件
 
-        :param file_name: 文件名
-        :return: 文件对象
+        Args:
+            file_name: 文件名
+
+        Returns:
+            文件对象
         """
         file_path = self.path / file_name
         file_path.touch()
@@ -657,6 +660,20 @@ class Directory(object):
         else:
             file = File(str(file_path))
         return file
+
+    def new_folders(self, sub_folder_path: str) -> 'Directory':
+        """
+        在目录下创建子目录
+
+        Args:
+            sub_folder_path: 子目录路径
+
+        Returns:
+            目录对象
+        """
+        folder_path = self.path / sub_folder_path
+        folder_path.mkdir(parents=True, exist_ok=True)
+        return Directory(str(folder_path))
 
     def get_file(self, file_name: str) -> File:
         """
@@ -729,22 +746,30 @@ class Directory(object):
 
 # region git仓库
 class GitRepository(Directory):
-    def __init__(self, path: str):
+    def __init__(self, path: str, ignores: list[str] = None):
         """
         创建一个git仓库
+
+        Args:
+            path: 仓库路径
+            ignores: 忽略的文件,会被添加到.gitignore文件中
         """
         super().__init__(path, auto_create=True)
-        self.init()
+        self.init(ignores)
 
-    def init(self):
+    def init(self, ignores: list[str] = None):
         """
         初始化一个git仓库
         """
         # 如果已经是git仓库,则不再初始化
         if self.path.joinpath(".git").exists():
             return
-        CommandLine.run("git init", cwd=str(self.path))
-        CommandLine.run("git add .", cwd=str(self.path))
+        # 创建.gitignore文件
+        if ignores:
+            git_ignore_file = self.new_file(".gitignore")
+            git_ignore_file.write_content("\n".join(ignores))
+        CommandLine.run_and_get("git init", cwd=str(self.path))
+        CommandLine.run_and_get("git add .", cwd=str(self.path))
 
     def commit(self, message: str, files: list[str] = None):
         """
@@ -754,10 +779,10 @@ class GitRepository(Directory):
         :param files: 仅提交指定文件
         """
         if files:
-            CommandLine.run(f"git add {' '.join(files)}", cwd=str(self.path))
-            CommandLine.run(f"git commit -m '{message}'", cwd=str(self.path))
+            CommandLine.run_and_get(f"git add {' '.join(files)}", cwd=str(self.path))
+            CommandLine.run_and_get(f"git commit -m '{message}'", cwd=str(self.path))
         else:
-            CommandLine.run(f"git commit -am '{message}'", cwd=str(self.path))
+            print(CommandLine.run_and_get(f"git commit -am '{message}'", cwd=str(self.path)))
 
     @classmethod
     def from_remote(cls, url: str, directory: str = None, name: str = None, branch: str = "master",
