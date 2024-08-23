@@ -565,12 +565,43 @@ class JsonFile(File):
         """
         self.write_content(model.model_dump_json(indent=4, exclude_none=True))
 
+    def get_value_by_jsonpath(self, json_path):
+        """
+        通过 JSON Path 获取值
+
+        Args:
+            json_path: JSON Path
+
+        Returns:
+            匹配到的值
+        """
+        # 读取json为字典
+        # region 尝试移除BOM头
+        json_str = self.read_content()
+        if json_str.startswith('\ufeff'):
+            json_str = json_str[1:]
+        # endregion
+        data = json.loads(json_str)
+
+        # 解析 JSON Path
+        jsonpath_expr = parse(json_path)
+
+        # 查找匹配的位置
+        matches = jsonpath_expr.find(data)
+        # print(len(matches))
+        # 返回匹配到的值
+        if len(matches) > 0:
+            return matches[0].value
+        else:
+            return None
+
     def set_value_by_jsonpath(self, json_path, new_value):
         """
         通过 JSON Path 设置值
 
-        :param json_path: JSON Path
-        :param new_value: 新值
+        Args:
+            json_path: JSON Path
+            new_value: 新值
         """
         # 读取json为字典
         # region 尝试移除BOM头

@@ -2066,14 +2066,15 @@ class JianYingDesktop:
         # 先按下ctrl键
         #pyautogui.keyDown("ctrl")
         for index in index_range:
-            logger.info(f"选择文本片段: {index}")
-            self.cnstore_file.set_value_by_jsonpath(
-                "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.value",
-                str(index))
-            self.cnstore_file.set_value_by_jsonpath(
-                "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.excluded",
-                None)
-            text_segment = ui(locator.jianyingpro.文本轨道)
+            params = {"index": index}
+            # logger.info(f"选择文本片段: {index}")
+            # self.cnstore_file.set_value_by_jsonpath(
+            #     "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.value",
+            #     str(index))
+            # self.cnstore_file.set_value_by_jsonpath(
+            #     "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.excluded",
+            #     None)
+            text_segment = ui(locator.jianyingpro.文本片段,params)
             if index == index_range.start:#如果是第一个文本片段，需要先hover一下，然后按下ctrl键
                 text_segment.hover()
                 pyautogui.keyDown("ctrl")
