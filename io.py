@@ -342,8 +342,20 @@ class DockerAeneas(Aeneas):
 
 
 class File(object):
-    def __init__(self, path: str):
+    def __init__(self, path: str, auto_create_parent_dir=False):
+        """
+        使用指定路径创建一个文件对象
+
+        Args:
+            path: 文件路径
+            auto_create_parent_dir: 是否自动创建父目录
+        """
         self.path = PathlibPath(path)
+        if auto_create_parent_dir:
+            # 获取父目录
+            parent_dir = self.path.parent
+            # 创建父目录（如果不存在）
+            parent_dir.mkdir(parents=True, exist_ok=True)
 
     def exists(self):
         return self.path.exists()
@@ -528,8 +540,8 @@ class YamlFile(File):
 # region Json文件
 class JsonFile(File):
 
-    def __init__(self, path: str):
-        super().__init__(path)
+    def __init__(self, path: str, auto_create_parent_dir=False):
+        super().__init__(path, auto_create_parent_dir)
 
     def read_dict(self) -> dict[str, any]:
         """
@@ -561,7 +573,9 @@ class JsonFile(File):
         """
         将 Pydantic 模型写入文件
 
-        :param model: Pydantic 模型
+        Args:
+            model: Pydantic 模型
+
         """
         self.write_content(model.model_dump_json(indent=4, exclude_none=True))
 
@@ -659,6 +673,15 @@ class Directory(object):
         if not self.path.is_dir():
             raise ValueError(f"路径 {path} 不是一个目录")
 
+    # region 删除目录
+    def delete(self):
+        """
+        删除目录
+        """
+        shutil.rmtree(self.path)
+    # endregion
+
+    # region 根据文件名查找文件
     def find_file(self, file_name: str) -> File:
         """
         在目录下查找指定文件
@@ -672,6 +695,7 @@ class Directory(object):
         for file in self.list_files():
             if file.name == file_name:
                 return File(str(file))
+    # endregion
 
     def new_file(self, file_name: str) -> TF:
         """
