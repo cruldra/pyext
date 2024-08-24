@@ -1340,51 +1340,51 @@ class VoiceInfo(BaseModel):
 
 
 class DigitalHuman(BaseModel):
-    background: str
+    background: Optional[str] = None
     """
     背景
     """
-    digital_human_id: str
+    digital_human_id: Optional[str] = None
     """
     数字人ID
     """
-    digital_human_source: str
+    digital_human_source: Optional[str] = None
     """
     数字人来源
     """
-    entrance: str
+    entrance: Optional[str] = None
     """
     入口
     """
-    id: str
+    id: Optional[str] = None
     """
     ID
     """
-    local_task_id: str
+    local_task_id: Optional[str] = None
     """
     本地任务ID
     """
-    mask: str
+    mask: Optional[str] = None
     """
     遮罩
     """
-    resource_id: str
+    resource_id: Optional[str] = None
     """
     资源ID
     """
-    tts_metas: List[TTSMeta]
+    tts_metas: Optional[List[TTSMeta]] = None
     """
     TTS元数据列表
     """
-    type: str
+    type: Optional[str] = None
     """
     类型
     """
-    video_meta: VideoMeta
+    video_meta: Optional[VideoMeta] = None
     """
     视频元数据
     """
-    voice_info: VoiceInfo
+    voice_info: Optional[VoiceInfo] = None
     """
     语音信息
     """
@@ -1601,6 +1601,7 @@ class Config(BaseModel):
     """缩放信息参数"""
 
 
+# region 草稿内容
 class DraftContent(BaseModel):
     # canvas_config: CanvasConfig = field(default_factory=lambda: CanvasConfig(
     #     height=1080,
@@ -1637,10 +1638,10 @@ class DraftContent(BaseModel):
     group_container: Optional[Any] = None
     """组容器"""
 
-    # id: str = field(
-    #     default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
-    # """ID"""
-    id: Optional[str] = None
+    id: str = field(
+        default_factory=lambda: UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
+    """ID"""
+    # id: Optional[str] = None
 
     keyframe_graph_list: Optional[List] = None
     """关键帧图表列表"""
@@ -1795,7 +1796,7 @@ class JianYingDraft:
         """
         重新加载草稿内容
         """
-        self.content = self.content_json_file.read_dataclass_json_obj(DraftContent)
+        self.content = self.content_json_file.read_as_pydanitc_model(DraftContent)
 
     # endregion
 
@@ -1896,20 +1897,20 @@ class JianYingDraft:
         # self.content.materials.material_animations.sort(key=lambda x: x.id, reverse=True)
         # self.content.materials.texts.sort(key=lambda x: x.id, reverse=True)
         self.content.tracks.append(text_track)
+
     # endregion
 
+    def get_digit_human(self, index: int) -> DigitalHuman:
+        """
+        获取草稿中的数字人素材
 
-def get_digit_human(self, index: int) -> DigitalHuman:
-    """
-    获取草稿中的数字人素材
+        Args:
+            index: 数字人索引
 
-    Args:
-        index: 数字人索引
-
-    Returns:
-        DigitalHuman: 数字人
-    """
-    return self.content.materials.digital_humans[index]
+        Returns:
+            DigitalHuman: 数字人
+        """
+        return self.content.materials.digital_humans[index]
 
 
 # endregion
@@ -2064,7 +2065,7 @@ class JianYingDesktop:
             index_range: 文本片段索引范围
         """
         # 先按下ctrl键
-        #pyautogui.keyDown("ctrl")
+        # pyautogui.keyDown("ctrl")
         for index in index_range:
             params = {"index": index}
             # logger.info(f"选择文本片段: {index}")
@@ -2074,8 +2075,8 @@ class JianYingDesktop:
             # self.cnstore_file.set_value_by_jsonpath(
             #     "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.excluded",
             #     None)
-            text_segment = ui(locator.jianyingpro.文本片段,params)
-            if index == index_range.start:#如果是第一个文本片段，需要先hover一下，然后按下ctrl键
+            text_segment = ui(locator.jianyingpro.文本片段, params)
+            if index == index_range.start:  # 如果是第一个文本片段，需要先hover一下，然后按下ctrl键
                 text_segment.hover()
                 pyautogui.keyDown("ctrl")
             text_segment.click()
@@ -2083,22 +2084,78 @@ class JianYingDesktop:
         pyautogui.keyUp("ctrl")
         # time.sleep(3)
         # ui(locator.jianyingpro.文本轨道1)
+
+    # endregion
+
+    # region 更改音色
+    def change_sound(self, sound_index: int):
+        """
+        更改音色
+
+        Args:
+            sound_index: 音色索引
+
+        Returns:
+            bool: 如果成功更改音色, 则返回True
+        """
+        # 视频轨道必须处于选中状态才能更改音色
+        if not cc.is_existing(locator.jianyingpro.视频轨道):
+            raise Exception("无法更换音色, 因为未找到视频轨道")
+        ui(locator.jianyingpro.视频轨道).click()
+        time.sleep(1)
+        image_location = pyautogui.locateOnScreen(
+            rf'{str(self.locator_root_path)}/pyautogui/jianyingpro_img/change_sound_tab2.png',
+            confidence=0.8)
+        # 移动鼠标到"添加数字人"tab标签的中心位置
+        image_center_point = pyautogui.center(image_location)
+        center_point_x, center_point_y = image_center_point
+        pyautogui.click(center_point_x, center_point_y)
+
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
+        def wait_sound_list():
+            if not cc.is_existing(locator.jianyingpro.音色):
+                raise Exception(f"加载音色列表失败")
+            return True
+
+        if wait_sound_list():
+            ui(locator.jianyingpro.音色, {
+                "index": sound_index
+            }).click()
+            time.sleep(1)
+            image_location = pyautogui.locateOnScreen(
+                rf'{str(self.locator_root_path)}/pyautogui/jianyingpro_img/Start reading.png',
+                confidence=0.8)
+            # 移动鼠标到"开始朗读"按钮的中心位置
+            image_center_point = pyautogui.center(image_location)
+            center_point_x, center_point_y = image_center_point
+            pyautogui.click(center_point_x, center_point_y)
+
+            # 点击开始朗读按钮后,等待"音频更新中"的提示框出现
+            @retry(stop=stop_after_attempt(5), wait=wait_fixed(0.2))
+            def wait_update_window():
+                if not cc.is_existing(locator.jianyingpro.数字人音频更新中窗口):
+                    raise Exception(f"窗口未出现")
+                return True
+
+            return wait_update_window()
+
     # endregion
 
     # region 添加数字人
-    def add_digital_human(self, index_range: IntRange, digital_human_index: int):
+    def add_digital_human(self, text_segment_index_range: IntRange, digital_human_index: int, sound_index: int):
         """
         添加数字人
 
         Args:
-            index_range:   文本片段索引范围
+            text_segment_index_range:   文本片段索引范围
             digital_human_index: 数字人索引
+            sound_index: 音色索引
 
 
         Returns:
             如果数字人生成成功, 则返回数字人视频文件
         """
-        self.select_text_segment(index_range)
+        self.select_text_segment(text_segment_index_range)
 
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
         def wait_digital_human_tab():
@@ -2120,10 +2177,9 @@ class JianYingDesktop:
             return True
 
         if wait_digital_human_list():
-            self.cnstore_file.set_value_by_jsonpath(
-                "locators[7].content.childControls[0].childControls[0].identifier.index.value",
-                str(digital_human_index))
-            ui(locator.jianyingpro.数字人).click()
+            ui(locator.jianyingpro.数字人, {
+                "index": digital_human_index
+            }).click()
 
             @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
             def wait_add_digital_human_button():
@@ -2140,20 +2196,40 @@ class JianYingDesktop:
             pyautogui.click(center_point_x, center_point_y)
             print(f"在{center_point_x},{center_point_y}上点击了添加数字人按钮")
 
+            # 点击完"添加数字人"按钮后,等待视频轨道出现
+
+            @retry(stop=stop_after_delay(30), wait=wait_fixed(1))
+            def wait_video_track():
+                # 在30秒内等待视频轨道出现
+                if not cc.is_existing(locator.jianyingpro.视频轨道):
+                    raise Exception(f"视频轨道未出现")
+                return True
+
+            if wait_video_track():
+                sound_changed = self.change_sound(sound_index)
+                if not sound_changed:
+                    raise Exception(f"更换音色失败")
+
             # 现在去草稿下面的数字人目录等mp4文件出来
             # 可能会有多个文件,按创建时间和大小排序，然后取第一个
             # self.dr
 
             @retry(stop=stop_after_delay(self.render_digital_human_timeout), wait=wait_fixed(3))
             def wait_video_file():
-                self.draft.reload()
-                digital_human_local_task_id = self.draft.get_digit_human(0).local_task_id
-                digital_human_video_dir = Directory(
-                    str(self.draft_root_path / f"{self.draft.name}/Resources/digitalHuman"))
-                digital_human_video_file = digital_human_video_dir.find_file(f"{digital_human_local_task_id}.mp4")
-                if digital_human_video_file is None:
-                    raise Exception(f"数字人视频文件未生成")
-                return digital_human_video_file
+                try:
+                    logger.info("正在等待视频渲染...")
+                    self.draft.reload()
+                    digital_human_local_task_id = self.draft.get_digit_human(0).local_task_id
+                    digital_human_video_dir = Directory(
+                        str(self.draft_root_path / f"{self.draft.name}/Resources/digitalHuman"))
+                    digital_human_video_file = digital_human_video_dir.find_file(f"{digital_human_local_task_id}.mp4")
+                    if digital_human_video_file is None:
+                        logger.info(f"{digital_human_video_dir.path}目录下未找到{digital_human_local_task_id}.mp4文件")
+                        raise Exception(f"数字人视频文件未生成")
+                    return digital_human_video_file
+                except Exception as e:
+                    logger.error(e)
+                    raise e
 
             return wait_video_file()
     # endregion
@@ -2168,9 +2244,33 @@ if __name__ == '__main__':
     # draft.add_text_track("aaaaa")
     # draft.save("加了一个文本轨道")
 
-    jianying = JianYingDesktop(r"D:\Program Files\JianyingPro5.9.0\JianyingPro.exe")
+    # jianying = JianYingDesktop(r"D:\Program Files\JianyingPro5.9.0\JianyingPro.exe")
     # jianying.start_process()
     # print(jianying.start_creation())
     # jianying.open_draft("test")
     # jianying.select_text_track(3)
-    jianying.add_digital_human(1, 6)
+    # jianying.add_digital_human(1, 6)
+    # image_location = pyautogui.locateOnScreen(
+    #     rf'D:\Workspace\aiworld\py_automation\digital_human_video\.locator\pyautogui\jianyingpro_img\change_sound_tab2.png',
+    #     confidence=0.8)
+    # 移动鼠标到"添加数字人"tab标签的中心位置
+    # image_center_point = pyautogui.center(image_location)
+    # center_point_x, center_point_y = image_center_point
+    # print(center_point_x, center_point_y)
+    # logger.info("草")
+    logger.info("正在等待视频渲染...")
+    content_json_file = JsonFile(
+        r"D:\ProgramData\JianyingPro Drafts\这些小知识点快快记起来！#留学 #留学日常 #留学机构\draft_content.json")
+    draft_content = content_json_file.read_as_pydanitc_model(DraftContent)
+    # self.draft.reload()
+
+    digital_human_local_task_id = draft_content.materials.digital_humans[0].local_task_id
+    print(digital_human_local_task_id)
+    digital_human_video_dir = Directory(
+        r"D:\ProgramData\JianyingPro Drafts\这些小知识点快快记起来！#留学 #留学日常 #留学机构\Resources\digitalHuman")
+    digital_human_video_file = digital_human_video_dir.find_file(f"{digital_human_local_task_id}.mp4")
+    print(digital_human_video_file)
+    # if digital_human_video_file is None:
+    #     logger.info(f"{digital_human_video_dir.path}目录下未找到{digital_human_local_task_id}.mp4文件")
+    #     raise Exception(f"数字人视频文件未生成")
+    # return digital_human_video_file
