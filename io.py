@@ -679,6 +679,7 @@ class Directory(object):
         删除目录
         """
         shutil.rmtree(self.path)
+
     # endregion
 
     # region 根据文件名查找文件
@@ -695,6 +696,7 @@ class Directory(object):
         for file in self.list_files():
             if file.name == file_name:
                 return File(str(file))
+
     # endregion
 
     def new_file(self, file_name: str) -> TF:
@@ -752,7 +754,7 @@ class Directory(object):
         """
         列出目录下的所有子目录
         """
-        return [Directory(str(f)) for f in self.path.iterdir() if f.is_dir]
+        return [Directory(str(f)) for f in self.path.iterdir() if f.is_dir()]
 
     def list_files(self):
         """

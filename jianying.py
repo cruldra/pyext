@@ -14,7 +14,8 @@ from clicknium import clicknium as cc, ui, locator
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
 
-from pyext.commons import UUID, ProcessManager, IntRange
+from config import app_config
+from pyext.commons import UUID, ProcessManager, IntRange, CommandLine
 from pyext.io import JsonFile, Directory, GitRepository
 
 logger = logging.getLogger(__name__)
@@ -1942,6 +1943,8 @@ class JianYingDesktop:
 
         self.draft: JianYingDraft | None = None
         """客户端当前打开的草稿"""
+        self.pid: int | None = None
+        """剪映桌面版进程ID"""
 
     # region 图文成片
     def create_image_text_video(self, text):
@@ -1973,6 +1976,18 @@ class JianYingDesktop:
 
     # endregion
 
+    # region 退出剪映桌面版
+    def exit(self):
+        """
+        退出剪映桌面版
+        """
+        # if self.pid:
+        #     ProcessManager.kill_process_by_pid(self.pid)
+        #     self.pid = None
+        ProcessManager.kill_process_by_name("JianyingPro.exe")
+
+    # endregion
+
     # region 打开剪映桌面版
     def start_process(self):
         """
@@ -1986,17 +2001,14 @@ class JianYingDesktop:
             started = True
         else:
             # 否则启动剪映桌面版,然后在15秒内每隔2秒检查是否启动成功
-            subprocess.Popen(self.executable_path)
+            process = subprocess.Popen(self.executable_path)
+            self.pid = process.pid
+            started = cc.is_existing(locator.jianyingpro.剪映主窗口)
 
-            @retry(stop=stop_after_delay(15), wait=wait_fixed(2))
-            def is_started():
-                if not ProcessManager.is_process_running("JianyingPro.exe"):
-                    raise Exception("剪映桌面版启动失败")
-                return True
-
-            started = is_started()
+        logger.info(f"剪映桌面版启动{'成功' if started else '失败'}")
         # 如果启动成功且弹出了草稿列表异常提示窗口,则点击取消按钮
         if started and cc.is_existing(locator.jianyingpro.草稿列表异常提示窗口):
+            logger.info("处理草稿列表异常提示窗口")
             ui(locator.jianyingpro.草稿列表异常窗口上的取消按钮).click()
         return started
 
@@ -2087,6 +2099,15 @@ class JianYingDesktop:
 
     # endregion
 
+    def activate(self):
+        """
+        激活剪映窗口
+        """
+        if cc.is_existing(locator.jianyingpro.剪辑窗口, timeout=5):
+            ui(locator.jianyingpro.剪辑窗口).set_focus()
+        elif cc.is_existing(locator.jianyingpro.剪映主窗口, timeout=5):
+            ui(locator.jianyingpro.剪映主窗口).set_focus()
+
     # region 更改音色
     def change_sound(self, sound_index: int):
         """
@@ -2109,6 +2130,7 @@ class JianYingDesktop:
         # 移动鼠标到"添加数字人"tab标签的中心位置
         image_center_point = pyautogui.center(image_location)
         center_point_x, center_point_y = image_center_point
+        logger.info("找到更换音色的tab标签,位于(%s,%s)", center_point_x, center_point_y)
         pyautogui.click(center_point_x, center_point_y)
 
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
@@ -2205,6 +2227,7 @@ class JianYingDesktop:
                     raise Exception(f"视频轨道未出现")
                 return True
 
+            # 视频轨道出现后,更换音色
             if wait_video_track():
                 sound_changed = self.change_sound(sound_index)
                 if not sound_changed:
@@ -2239,6 +2262,8 @@ class JianYingDesktop:
 
 
 if __name__ == '__main__':
+    cc.config.set_license(
+        'idC+m5GXnIGXlqad0MjQw8XHxtDe0KGRmpefk6SXgNDI0MDQ3tChmYfQyNCil4CBnZyTntKigJ2Ul4GBm52ck57Q3tCkk56blpOGl7SAnZ/QyNDAwsDG38LK38PBpsPEyMHAyMPA3MbCw8bDxKjQ3tCkk56blpOGl6ad0MjQwMLAxt/Cy9/DwabDxMjBwMjDwNzGwsPGw8TDqNDe0LSXk4aHgJeB0MipidC8k5+X0MjQv5OKvp2Rk4adgL6bn5uGl9De0KSTnoeX0MjQw8rGxsTFxsbCxcHFwsvHx8PEw8fQj6+P.TxyBpuEIEO/+vERtrBkSweyal1A+kUrxKb+Tlb4SnNUGqnNCz9MpYYo+pSpc21rUEYjQn01QsxNtnL1nmHnHf0E0LYgeRYsULogA+czK9uWpsYbAflJyOEVTCP4WOSGLHiSkBQinhLOijvXNONZw9s2P904u9LS9iouf6aNzFSw=')
     # JianYingDraft.draft_root_path = Path(r"D:\ProgramData\JianyingPro Drafts")
     # draft = JianYingDraft(name="test")
     # draft.add_text_track("aaaaa")
@@ -2258,19 +2283,25 @@ if __name__ == '__main__':
     # center_point_x, center_point_y = image_center_point
     # print(center_point_x, center_point_y)
     # logger.info("草")
-    logger.info("正在等待视频渲染...")
-    content_json_file = JsonFile(
-        r"D:\ProgramData\JianyingPro Drafts\这些小知识点快快记起来！#留学 #留学日常 #留学机构\draft_content.json")
-    draft_content = content_json_file.read_as_pydanitc_model(DraftContent)
+    # logger.info("正在等待视频渲染...")
+    # content_json_file = JsonFile(
+    #     r"D:\ProgramData\JianyingPro Drafts\这些小知识点快快记起来！#留学 #留学日常 #留学机构\draft_content.json")
+    # draft_content = content_json_file.read_as_pydanitc_model(DraftContent)
     # self.draft.reload()
 
-    digital_human_local_task_id = draft_content.materials.digital_humans[0].local_task_id
-    print(digital_human_local_task_id)
-    digital_human_video_dir = Directory(
-        r"D:\ProgramData\JianyingPro Drafts\这些小知识点快快记起来！#留学 #留学日常 #留学机构\Resources\digitalHuman")
-    digital_human_video_file = digital_human_video_dir.find_file(f"{digital_human_local_task_id}.mp4")
-    print(digital_human_video_file)
+    # digital_human_local_task_id = draft_content.materials.digital_humans[0].local_task_id
+    # print(digital_human_local_task_id)
+    # digital_human_video_dir = Directory(
+    #     r"D:\ProgramData\JianyingPro Drafts\这些小知识点快快记起来！#留学 #留学日常 #留学机构\Resources\digitalHuman")
+    # digital_human_video_file = digital_human_video_dir.find_file(f"{digital_human_local_task_id}.mp4")
+    # print(digital_human_video_file)
     # if digital_human_video_file is None:
     #     logger.info(f"{digital_human_video_dir.path}目录下未找到{digital_human_local_task_id}.mp4文件")
     #     raise Exception(f"数字人视频文件未生成")
     # return digital_human_video_file
+    # window = ui(locator.jianyingpro.剪映主窗口)
+    # window.set_focus()
+    # window.get_property
+    # print(window)
+    jianying_desktop = JianYingDesktop(**(app_config.jianying_pro.model_dump()))
+    jianying_desktop.start_process()

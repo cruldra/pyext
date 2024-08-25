@@ -11,6 +11,7 @@ import ctypes
 import psutil
 from PIL import ImageFont
 
+logger = logging.getLogger(__name__)
 # region 数字范围
 class IntRange(object):
     """
@@ -26,6 +27,8 @@ class IntRange(object):
 
     def __iter__(self):
         return iter(range(self.start, self.end + 1))
+
+
 # endregion
 
 # region 文本处理
@@ -64,6 +67,8 @@ class Text(object):
         font = ImageFont.truetype(font_path, font_size)
         width, height = font.getbbox(self.value)[2:]
         return width, height
+
+
 # endregion
 
 # region 对象工具
@@ -89,6 +94,8 @@ class Objects(object):
 
         # 按照数字顺序排序
         return fields_values
+
+
 # endregion
 
 
@@ -211,13 +218,82 @@ class ProcessManager(object):
         """
         检查进程是否正在运行
 
-        :param process_name: 进程名称
-        :return: 如果进程正在运行, 则返回True, 否则返回False
+        Args:
+            process_name: 进程名称
+
+        Returns:
+            bool: 如果进程正在运行，则返回True，否则返回False
         """
+        return  bool(cls.get_processes_by_name(process_name))
+
+    @classmethod
+    def get_processes_by_name(cls, process_name: str) -> list[psutil.Process]:
+        """
+        通过进程名称获取所有匹配的进程对象
+
+        Args:
+            process_name: 进程名称
+
+        Returns:
+            list[psutil.Process]: 匹配的进程对象列表
+        """
+        matching_processes = []
         for proc in psutil.process_iter(['name']):
-            if process_name.lower() in proc.info['name'].lower():
-                return True
-        return False
+            try:
+                if process_name.lower() in proc.info['name'].lower():
+                    matching_processes.append(proc)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        return matching_processes
+
+    @classmethod
+    def kill_process_by_name(cls, process_name: str, timeout: int = 5) -> None:
+        """
+        通过进程名称杀死所有匹配的进程
+
+        :param process_name: 进程名称
+        :param timeout: 等待进程终止的超时时间（秒）
+        """
+        processes = cls.get_processes_by_name(process_name)
+        if not processes:
+            return
+
+        for proc in processes:
+            try:
+                pid = proc.pid
+                proc.terminate()
+                logger.info(f"Terminating process {pid} ({proc.name()})...")
+
+                # 等待进程终止
+                proc.wait(timeout=timeout)
+
+            except psutil.NoSuchProcess:
+                logger.info(f"Process {pid} no longer exists.")
+            except psutil.AccessDenied:
+                logger.info(f"Access denied to terminate process {pid}.")
+            except psutil.TimeoutExpired:
+                logger.info(f"Process {pid} did not terminate in time, forcefully killing it.")
+                proc.kill()
+
+        # 再次检查进程是否还存在
+        remaining = cls.get_processes_by_name(process_name)
+        if remaining:
+            logger.info(f"Warning: {len(remaining)} processes with name '{process_name}' still running.")
+        else:
+            logger.info(f"All processes with name '{process_name}' have been terminated.")
+
+    @classmethod
+    def kill_process_by_pid(cls, pid: int):
+        """
+        通过进程ID杀死进程
+
+        :param pid: 进程ID
+        """
+        try:
+            process = psutil.Process(pid)
+            process.kill()
+        except Exception as e:
+            logger.error(f"无法杀死进程: {e}")
 
 
 # endregion
@@ -246,7 +322,7 @@ class Netcat(object):
             start_time = time.time()
 
             # 尝试连接
-            logging.info(f"正在连接 {ip} 端口 {port}...")
+            logger.info(f"正在连接 {ip} 端口 {port}...")
             s.connect((ip, port))
 
             # 计算连接时间
@@ -255,20 +331,20 @@ class Netcat(object):
             # 获取本地地址和端口
             local_address, local_port = s.getsockname()
 
-            logging.info(f"连接到 {ip} 端口 {port} 成功 从 {local_address}:{local_port}")
-            logging.info(f"连接耗时: {connection_time:.6f} 秒")
+            logger.info(f"连接到 {ip} 端口 {port} 成功 从 {local_address}:{local_port}")
+            logger.info(f"连接耗时: {connection_time:.6f} 秒")
 
             # 关闭连接
             s.close()
             return True
         except socket.timeout:
-            logging.info(f"连接超时: 无法在指定时间内连接到 {ip}:{port}")
+            logger.info(f"连接超时: 无法在指定时间内连接到 {ip}:{port}")
         except ConnectionRefusedError:
-            logging.info(f"连接被拒绝: {ip}:{port} 可能没有监听或被防火墙阻止")
+            logger.info(f"连接被拒绝: {ip}:{port} 可能没有监听或被防火墙阻止")
         except socket.gaierror:
-            logging.info(f"地址解析错误: 无法解析 {ip}")
+            logger.info(f"地址解析错误: 无法解析 {ip}")
         except Exception as e:
-            logging.info(f"发生错误: {e}")
+            logger.info(f"发生错误: {e}")
         return False
 
     @classmethod
@@ -292,7 +368,7 @@ if __name__ == '__main__':
     # CommandLine.run_async("ping 360.com")
     # print(Display.get_screen_resolution())
     # print(ProcessManager.is_process_running("JianyingPro.exe"))
-    #print(Netcat.connect("localhost", 9222))
+    # print(Netcat.connect("localhost", 9222))
     # 示例使用
     class MyClass:
         def __init__(self):
