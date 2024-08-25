@@ -2003,7 +2003,15 @@ class JianYingDesktop:
             # 否则启动剪映桌面版,然后在15秒内每隔2秒检查是否启动成功
             process = subprocess.Popen(self.executable_path)
             self.pid = process.pid
-            started = cc.is_existing(locator.jianyingpro.剪映主窗口)
+
+            @retry(stop=stop_after_delay(15), wait=wait_fixed(2))
+            def wait_jianying_main_window():
+                logger.info("正在等待剪映主窗口打开...")
+                if not cc.is_existing(locator.jianyingpro.剪映主窗口):
+                    raise Exception("剪映主窗口未打开")
+                return True
+
+            started = wait_jianying_main_window()
 
         logger.info(f"剪映桌面版启动{'成功' if started else '失败'}")
         # 如果启动成功且弹出了草稿列表异常提示窗口,则点击取消按钮
@@ -2214,9 +2222,17 @@ class JianYingDesktop:
             # 移动鼠标到"添加数字人"按钮的中心位置
             image_center_point = pyautogui.center(image_location)
             center_point_x, center_point_y = image_center_point
-            time.sleep(1)
-            pyautogui.click(center_point_x, center_point_y)
-            print(f"在{center_point_x},{center_point_y}上点击了添加数字人按钮")
+
+            # 点击添加数字人按钮,然后等待"音频更新中"的提示框出现
+            @retry(stop=stop_after_attempt(50), wait=wait_fixed(0.2))
+            def wait_update_window():
+                pyautogui.click(center_point_x, center_point_y)
+                print(f"在{center_point_x},{center_point_y}上点击了添加数字人按钮")
+                if not cc.is_existing(locator.jianyingpro.数字人音频更新中窗口):
+                    raise Exception(f"窗口未出现")
+                return True
+
+            wait_update_window()
 
             # 点击完"添加数字人"按钮后,等待视频轨道出现
 
