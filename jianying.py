@@ -1,9 +1,7 @@
-import json
 import logging
 import shutil
 import subprocess
 import time
-import uuid
 from dataclasses import field
 from pathlib import Path
 from typing import List, Union, Any, Optional
@@ -15,7 +13,7 @@ from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
 
 from config import app_config
-from pyext.commons import UUID, ProcessManager, IntRange, CommandLine
+from pyext.commons import UUID, ProcessManager, IntRange
 from pyext.io import JsonFile, Directory, GitRepository
 
 logger = logging.getLogger(__name__)
@@ -1988,6 +1986,25 @@ class JianYingDesktop:
 
     # endregion
 
+
+    #region 窗口全屏
+    def full_screen(self):
+        """
+        全屏
+        """
+        taskbar_size = ui(locator.explorer.任务栏).get_size()
+        window , type = self.activate()
+        window_size = window.get_size()
+        window_size= (window_size.Width,window_size.Height)
+        screen_size = pyautogui.size()
+        screen_size = (screen_size.width,screen_size.height-taskbar_size.Height)
+        if window and window_size != screen_size:
+            if type == 1:
+                ui(locator.jianyingpro.主窗口最大化按钮).click()
+            elif type == 2:
+                ui(locator.jianyingpro.剪辑窗口最大化按钮).click()
+    #endregion
+
     # region 打开剪映桌面版
     def start_process(self):
         """
@@ -2072,7 +2089,17 @@ class JianYingDesktop:
         # 等待搜索结果然后点击第一个结果
         if wait_draft_search_result():
             ui(locator.jianyingpro.草稿列表中的第一个元素).click()
-        self.draft = draft
+
+        #最后等待剪辑窗口出现
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
+        def wait_edit_window():
+            if not cc.is_existing(locator.jianyingpro.剪辑窗口):
+                raise Exception("剪辑窗口未打开")
+            return True
+        
+        if wait_edit_window():
+            self.draft = draft
+            return True
 
     # endregion
 
@@ -2107,14 +2134,23 @@ class JianYingDesktop:
 
     # endregion
 
+    # region 激活窗口
     def activate(self):
         """
         激活剪映窗口
+
+        Returns:
+            tuple(UIElement,int): 如果成功激活窗口, 则返回UIElement对象和窗口类型, 否则返回None. `1`表示剪映主窗口, `2`表示剪辑窗口
         """
         if cc.is_existing(locator.jianyingpro.剪辑窗口, timeout=5):
-            ui(locator.jianyingpro.剪辑窗口).set_focus()
+            ui_element = ui(locator.jianyingpro.剪辑窗口)
+            ui_element.set_focus()
+            return ui_element,2
         elif cc.is_existing(locator.jianyingpro.剪映主窗口, timeout=5):
-            ui(locator.jianyingpro.剪映主窗口).set_focus()
+            ui_element = ui(locator.jianyingpro.剪映主窗口)
+            ui_element.set_focus()
+            return ui_element,1
+    # endregion
 
     # region 更改音色
     def change_sound(self, sound_index: int):
@@ -2275,49 +2311,3 @@ class JianYingDesktop:
 
 
 # endregion
-
-
-if __name__ == '__main__':
-    cc.config.set_license(
-        'idC+m5GXnIGXlqad0MjQw8XHxtDe0KGRmpefk6SXgNDI0MDQ3tChmYfQyNCil4CBnZyTntKigJ2Ul4GBm52ck57Q3tCkk56blpOGl7SAnZ/QyNDAwsDG38LK38PBpsPEyMHAyMPA3MbCw8bDxKjQ3tCkk56blpOGl6ad0MjQwMLAxt/Cy9/DwabDxMjBwMjDwNzGwsPGw8TDqNDe0LSXk4aHgJeB0MipidC8k5+X0MjQv5OKvp2Rk4adgL6bn5uGl9De0KSTnoeX0MjQw8rGxsTFxsbCxcHFwsvHx8PEw8fQj6+P.TxyBpuEIEO/+vERtrBkSweyal1A+kUrxKb+Tlb4SnNUGqnNCz9MpYYo+pSpc21rUEYjQn01QsxNtnL1nmHnHf0E0LYgeRYsULogA+czK9uWpsYbAflJyOEVTCP4WOSGLHiSkBQinhLOijvXNONZw9s2P904u9LS9iouf6aNzFSw=')
-    # JianYingDraft.draft_root_path = Path(r"D:\ProgramData\JianyingPro Drafts")
-    # draft = JianYingDraft(name="test")
-    # draft.add_text_track("aaaaa")
-    # draft.save("加了一个文本轨道")
-
-    # jianying = JianYingDesktop(r"D:\Program Files\JianyingPro5.9.0\JianyingPro.exe")
-    # jianying.start_process()
-    # print(jianying.start_creation())
-    # jianying.open_draft("test")
-    # jianying.select_text_track(3)
-    # jianying.add_digital_human(1, 6)
-    # image_location = pyautogui.locateOnScreen(
-    #     rf'D:\Workspace\aiworld\py_automation\digital_human_video\.locator\pyautogui\jianyingpro_img\change_sound_tab2.png',
-    #     confidence=0.8)
-    # 移动鼠标到"添加数字人"tab标签的中心位置
-    # image_center_point = pyautogui.center(image_location)
-    # center_point_x, center_point_y = image_center_point
-    # print(center_point_x, center_point_y)
-    # logger.info("草")
-    # logger.info("正在等待视频渲染...")
-    # content_json_file = JsonFile(
-    #     r"D:\ProgramData\JianyingPro Drafts\这些小知识点快快记起来！#留学 #留学日常 #留学机构\draft_content.json")
-    # draft_content = content_json_file.read_as_pydanitc_model(DraftContent)
-    # self.draft.reload()
-
-    # digital_human_local_task_id = draft_content.materials.digital_humans[0].local_task_id
-    # print(digital_human_local_task_id)
-    # digital_human_video_dir = Directory(
-    #     r"D:\ProgramData\JianyingPro Drafts\这些小知识点快快记起来！#留学 #留学日常 #留学机构\Resources\digitalHuman")
-    # digital_human_video_file = digital_human_video_dir.find_file(f"{digital_human_local_task_id}.mp4")
-    # print(digital_human_video_file)
-    # if digital_human_video_file is None:
-    #     logger.info(f"{digital_human_video_dir.path}目录下未找到{digital_human_local_task_id}.mp4文件")
-    #     raise Exception(f"数字人视频文件未生成")
-    # return digital_human_video_file
-    # window = ui(locator.jianyingpro.剪映主窗口)
-    # window.set_focus()
-    # window.get_property
-    # print(window)
-    jianying_desktop = JianYingDesktop(**(app_config.jianying_pro.model_dump()))
-    jianying_desktop.start_process()
