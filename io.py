@@ -504,6 +504,32 @@ class VideoFile(File):
         CommandLine.run(f"ffmpeg -i {str(self.path.absolute())} -q:a 0 -map a {str(audio_file_path.absolute())}")
         return AudioFile(str(audio_file_path))
 
+    @property
+    def resolution(self):
+        """
+        获取视频分辨率
+
+        Returns:
+            tuple[int, int]: 宽度, 高度
+        """
+        result = CommandLine.run_and_get(f"ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 \"{self.path.absolute()}\"")
+        width, height = result.output.strip().split("x")
+        return int(width), int(height)
+
+    def resize(self, new_width: int, new_height: int) -> 'VideoFile':
+        """
+        调整视频分辨率
+
+        Args:
+            new_width: 新宽度
+            new_height: 新高度
+
+        Returns:
+            VideoFile: 新的视频文件对象
+        """
+        new_video_file = self.path.parent / f"{self.path.stem}-resized.mp4"
+        output =CommandLine.run_and_get(f"""ffmpeg -i "{str(self.path.absolute())}" -vf scale={new_width}:{new_height} -c:a copy  "{str(new_video_file.absolute())}" """)
+        return VideoFile(str(new_video_file))
 # endregion
 
 
@@ -879,6 +905,11 @@ if __name__ == '__main__':
     # httpd.socket = ssl.wrap_socket(httpd.socket,
     #                                keyfile="/path/to/key.pem",
     #                                certfile='/path/to/cert.pem', server_side=True)
-    print(Directory("../.data/videos").as_static_file_server())
-    time.sleep(1000)
-    pass
+    # print(Directory("../.data/videos").as_static_file_server())
+    # time.sleep(1000)
+    # pass
+    video_file = VideoFile(r"C:\Users\cruld\Documents\WeChat Files\wxid_gsdq4x6zge5a12\FileStorage\Video\2024-08\output.mp4")
+    # print(video_file.resolution)
+    new_video_file = video_file.resize(1080, 1920)
+    print(new_video_file.exists())
+    print(new_video_file.resolution)
