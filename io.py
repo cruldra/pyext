@@ -486,17 +486,23 @@ class VideoFile(File):
     def __init__(self, path: str):
         super().__init__(path)
 
-    # def extract_audio(self, dest_dir:str, audio_name:str, audio_format:Type[TAF])->TAF:
-    #     """
-    #     提取音频
-    #
-    #     Args:
-    #         dest_dir: 提取到的音频文件放置的目录
-    #         audio_name: 音频文件名
-    #         audio_format: 音频文件类型
-    #     """
-    #     CommandLine.run(f"ffmpeg -i {self.path} -q:a 0 -map a {output_path}")
+    def extract_audio(self, audio_file_name: str = None) -> 'AudioFile':
+        """
+        提取视频的音频,然后放到视频文件的同级目录下
 
+        Args:
+            audio_file_name: 音频文件的名称,带后缀,比如"audio.mp3",如果没有指定,则默认为 "${视频文件名}.mp3"
+
+
+        Returns:
+            AudioFile: 音频文件对象
+        """
+        video_file_name = self.path.name
+        if audio_file_name is None:
+            audio_file_name = f"{self.path.stem}.mp3"
+        audio_file_path = self.path.parent / audio_file_name
+        CommandLine.run(f"ffmpeg -i {str(self.path.absolute())} -q:a 0 -map a {str(audio_file_path.absolute())}")
+        return AudioFile(str(audio_file_path))
 
 # endregion
 
