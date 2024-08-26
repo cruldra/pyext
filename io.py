@@ -1,15 +1,13 @@
+import http.server
 import json
 import logging
 import os.path
 import shutil
+import socketserver
 import textwrap
-import threading
-import time
 from enum import Enum
 from pathlib import Path as PathlibPath
 from typing import TypeVar, Type, Optional
-import http.server
-import socketserver
 
 import pysubs2
 import yaml
@@ -19,7 +17,7 @@ from jsonpath_ng import parse
 from langdetect import detect, LangDetectException
 from pydantic import BaseModel
 
-from pyext.commons import CommandLine, Text
+from pyext.commons import CommandLine
 
 TF = TypeVar('TF', bound='File')
 TPM = TypeVar('TPM', bound=BaseModel)
@@ -552,6 +550,7 @@ class Mp3File(AudioFile):
 class YamlFile(File):
     def __init__(self, path: str):
         super().__init__(path)
+        print(str(self.path.absolute()))
 
     def read_as_pydantic_model(self, model: Type[TPM]) -> TPM:
         """
