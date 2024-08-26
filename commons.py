@@ -196,7 +196,8 @@ class Display(object):
         """
         获取屏幕分辨率
 
-        :return: 一个元组, 第一个元素为屏幕宽度, 第二个元素为屏幕高度
+        Returns:
+            tuple[int, int]: 屏幕宽度, 屏幕高度
         """
         user32 = ctypes.windll.user32
         screen_width = user32.GetSystemMetrics(0)
