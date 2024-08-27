@@ -7,7 +7,7 @@ import socketserver
 import textwrap
 from enum import Enum
 from pathlib import Path as PathlibPath
-from typing import TypeVar, Type, Optional
+from typing import TypeVar, Type, Optional, Union
 
 import pysubs2
 import yaml
@@ -381,7 +381,7 @@ class File(object):
         with self.path.open("r", encoding='utf-8') as f:
             return f.read()
 
-    def move_to(self, target_path: str = None) -> 'File':
+    def move_to(self, target_path: str) -> 'File':
         """
         移动文件到新路径
 
@@ -394,6 +394,25 @@ class File(object):
         shutil.move(str(self.path), str(target_path))
         return File(str(target_path))
 
+    #这里有个前向引用，所以用字符串, 参考https://poe.com/s/kxbWkhgiPORnv2D02LUJ
+    def copy_to(self, target: 'str | Directory') -> 'File':
+        """
+        复制文件到新路径
+
+        Args:
+            target: 如果是字符串,则表示目标路径,如果是Directory对象,则表示目标目录
+
+        Returns:
+            新的文件对象
+        """
+
+        if isinstance(target, Directory):
+            target_path = target.path / self.path.name
+        else:
+            target_path = PathlibPath(target)
+
+        shutil.copy2(str(self.path), str(target_path))
+        return File(str(target_path))
 
 # region 字幕文件
 
@@ -695,13 +714,22 @@ class Directory(object):
         """
         创建一个位于指定路径上的目录对象
 
-        :param path: 目录的路径
+        Args:
+            path: 目录路径
+            auto_create: 是否自动创建目录,默认为True
         """
         self.path = PathlibPath(path)
         if auto_create and not self.path.exists():
             self.path.mkdir(parents=True)
         if not self.path.is_dir():
             raise ValueError(f"路径 {path} 不是一个目录")
+
+    @property
+    def absolute_path(self):
+        """
+        获取这个目录的绝对路径
+        """
+        return str(self.path.absolute())
 
     # region 删除目录
     def delete(self):

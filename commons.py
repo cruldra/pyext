@@ -3,6 +3,7 @@ import re
 import socket
 import time
 import uuid
+from datetime import datetime
 from typing import Tuple, Any
 import subprocess
 from dataclasses import dataclass
@@ -12,6 +13,178 @@ import psutil
 from PIL import ImageFont
 
 logger = logging.getLogger(__name__)
+
+# region 批处理任务的执行结果
+from datetime import datetime
+from typing import List, Any, Dict
+
+
+class BatchProcessingResult:
+    """
+    批处理任务的执行结果
+
+    References:
+        - [poe](https://poe.com/s/EjySosRoZFDGKroOIaqr)
+
+
+    Example:
+        ```python
+        from datetime import datetime
+
+# 创建一个新的批处理结果实例
+result = BatchProcessingResult("TASK_001", datetime.now())
+
+# 设置总项目数
+result.set_total_items(100)
+
+# 模拟处理过程
+for i in range(100):
+    success = i % 10 != 0  # 假设每10个项目中有1个失败
+    result.add_processed_item(success)
+    if not success:
+        result.add_error("ProcessingError", f"Failed to process item {i}")
+
+# 添加额外信息
+result.add_additional_info("processor_version", "1.0.3")
+
+# 完成任务
+result.complete(datetime.now())
+
+# 获取摘要
+summary = result.get_summary()
+print(summary)
+        ```
+    """
+
+    def __init__(self, task_id: str, start_time: datetime = None):
+        self.task_id = task_id
+        """任务ID"""
+        self.start_time = start_time if start_time else datetime.now()
+        """开始时间"""
+        self.end_time: datetime = None
+        """结束时间"""
+        self.status: str = "Running"
+        """状态"""
+        self.total_items: int = 0
+        """总数"""
+        self.processed_items: int = 0
+        """处理数量"""
+        self.successful_items: int = 0
+        """成功数量"""
+        self.failed_items: int = 0
+        """失败数量"""
+        self.errors: List[Dict[str, Any]] = []
+        """错误列表"""
+        self.additional_info: Dict[str, Any] = {}
+        """额外信息"""
+
+    def complete(self, end_time: datetime =None ,fail_threshold: int = None):
+        """
+        完成任务
+
+        Args:
+            end_time: 结束时间
+            fail_threshold: 失败阈值,如果失败数量超过阈值,则任务失败,默认为任务总数的50%
+        """
+        self.end_time = end_time if end_time else datetime.now()
+        self.status = "Completed"
+
+        if fail_threshold is None:
+            fail_threshold = self.total_items // 2
+        if self.failed_items > fail_threshold:
+            self.fail(self.end_time, f"Failed items exceed the threshold of {fail_threshold}")
+
+    def fail(self, end_time: datetime, reason: str):
+        """
+        任务失败
+
+        Args:
+            end_time: 结束时间
+            reason: 失败原因
+        """
+        self.end_time = end_time
+        self.status = "Failed"
+        self.add_error("Task Failure", reason)
+
+    def add_successful_item(self):
+        """
+        添加成功项目
+        """
+        self.processed_items += 1
+        self.successful_items += 1
+
+    def add_failed_item(self, error_message: str):
+        """
+        添加失败项目
+        """
+        self.processed_items += 1
+        self.failed_items += 1
+        self.add_error("ProcessingError", error_message)
+
+    def add_error(self, error_type: str, error_message: str):
+        """
+        添加错误
+        """
+        self.errors.append({
+            "type": error_type,
+            "message": error_message,
+            "time": datetime.now()
+        })
+
+    def set_total_items(self, total: int):
+        """
+        设置总项目数
+
+        Args:
+            total: 总数
+        """
+        self.total_items = total
+
+    def add_additional_info(self, key: str, value: Any):
+        """
+        添加额外信息
+
+        Args:
+            key: 键
+            value: 值
+        """
+        self.additional_info[key] = value
+
+    def get_duration(self) -> float:
+        """
+        获取批处理任务的耗时
+
+        Returns:
+            float: 耗时（秒）
+        """
+        if self.end_time:
+            return (self.end_time - self.start_time).total_seconds()
+        return (datetime.now() - self.start_time).total_seconds()
+
+    def get_summary(self) -> Dict[str, Any]:
+        """
+        获取任务摘要
+
+        Returns:
+            Dict[str, Any]: 摘要
+        """
+        return {
+            "task_id": self.task_id,
+            "status": self.status,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "duration": self.get_duration(),
+            "total_items": self.total_items,
+            "processed_items": self.processed_items,
+            "successful_items": self.successful_items,
+            "failed_items": self.failed_items,
+            "error_count": len(self.errors),
+            "additional_info": self.additional_info
+        }
+
+
+# endregion
+
 # region 数字范围
 class IntRange(object):
     """
@@ -225,7 +398,7 @@ class ProcessManager(object):
         Returns:
             bool: 如果进程正在运行，则返回True，否则返回False
         """
-        return  bool(cls.get_processes_by_name(process_name))
+        return bool(cls.get_processes_by_name(process_name))
 
     @classmethod
     def get_processes_by_name(cls, process_name: str) -> list[psutil.Process]:
