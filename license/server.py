@@ -39,8 +39,8 @@ class KeyServer:
             else:
                 return jsonify({"error": "Key not found"}), 404
 
-    def run(self):
-        self.app.run()
+    def run(self ,host):
+        self.app.run(host)
 
     # 初始化数据库
     def init_db(self):
@@ -62,8 +62,8 @@ def generate(client_id: str):
 
 
 @typer_app.command()
-def run():
-    server_app.run()
+def run(host:str="0.0.0.0"):
+    server_app.run(host)
 
 
 if __name__ == '__main__':

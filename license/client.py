@@ -1,6 +1,5 @@
 # 实现一个密钥管理服务用于授权认证
 # 有两个部分，一个服务端，一个客户端,服务端用于创建和管理密钥，每个密钥对应一个键是客户端的id,然后客户端获取当前机器码再发送到服务端去获取密钥，如果没获取到就抛出异常
-import asyncio
 import platform
 import uuid
 import winreg
