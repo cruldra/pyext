@@ -49,7 +49,7 @@ class KeyClient:
 typer_app = typer.Typer()
 
 @typer_app.command()
-def verify(server_url: str="http://8.130.104.39"):
+def verify(server_url: str="http://8.130.104.39:5000"):
     client = KeyClient(server_url)
     try:
         key = client.get_key()

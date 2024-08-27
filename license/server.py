@@ -78,10 +78,29 @@ def run(host: str = "0.0.0.0"):
 
 @typer_app.command()
 def list_keys():
+    """
+    列出所有客户端的密钥
+
+    Returns:
+        list: 所有客户端的密钥
+    """
     keys = list_client_keys()
     for client_id, key in keys:
         print(f"Client ID: {client_id}, Key: {key}")
 
+@typer_app.command()
+def del_client(client_id):
+    """
+    删除指定客户端的密钥
+
+    Args:
+        client_id (str): 客户端ID
+    """
+    conn = sqlite3.connect('keys.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM keys WHERE client_id = ?", (client_id,))
+    conn.commit()
+    conn.close()
 
 if __name__ == '__main__':
     typer_app()
