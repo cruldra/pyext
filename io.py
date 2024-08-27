@@ -550,7 +550,6 @@ class Mp3File(AudioFile):
 class YamlFile(File):
     def __init__(self, path: str):
         super().__init__(path)
-        print(str(self.path.absolute()))
 
     def read_as_pydantic_model(self, model: Type[TPM]) -> TPM:
         """

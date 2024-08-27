@@ -36,7 +36,6 @@ class KeyClient:
         self.client_id = get_machine_code()
 
     def get_key(self):
-        print(f"Getting key for client: {self.client_id}")
         response = requests.post(f"{self.server_url}/get_key", json={
             "client_id": self.client_id
         })
