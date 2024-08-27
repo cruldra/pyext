@@ -36,6 +36,7 @@ class KeyClient:
         self.client_id = get_machine_code()
 
     def get_key(self):
+        print(f"Getting key for client: {self.client_id}")
         response = requests.post(f"{self.server_url}/get_key", json={
             "client_id": self.client_id
         })
@@ -48,7 +49,7 @@ class KeyClient:
 typer_app = typer.Typer()
 
 @typer_app.command()
-def verify(server_url: str=None):
+def verify(server_url: str="http://8.130.104.39"):
     client = KeyClient(server_url)
     try:
         key = client.get_key()

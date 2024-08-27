@@ -19,6 +19,16 @@ def generate_key(client_id):
     return key
 
 
+def list_client_keys():
+    conn = sqlite3.connect('keys.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM keys")
+    result = c.fetchall()
+    conn.close()
+
+    return result
+
+
 class KeyServer:
     def __init__(self):
         self.app = Flask(__name__)
@@ -39,7 +49,7 @@ class KeyServer:
             else:
                 return jsonify({"error": "Key not found"}), 404
 
-    def run(self ,host):
+    def run(self, host):
         self.app.run(host)
 
     # 初始化数据库
@@ -62,8 +72,15 @@ def generate(client_id: str):
 
 
 @typer_app.command()
-def run(host:str="0.0.0.0"):
+def run(host: str = "0.0.0.0"):
     server_app.run(host)
+
+
+@typer_app.command()
+def list_keys():
+    keys = list_client_keys()
+    for client_id, key in keys:
+        print(f"Client ID: {client_id}, Key: {key}")
 
 
 if __name__ == '__main__':
