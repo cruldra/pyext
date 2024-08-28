@@ -1,6 +1,8 @@
 import logging
+import os
 import re
 import socket
+import sys
 import time
 import uuid
 from datetime import datetime
@@ -8,11 +10,12 @@ from typing import Tuple, Any
 import subprocess
 from dataclasses import dataclass
 import ctypes
-
+from functools import wraps
+from loguru import logger
+import coloredlogs
 import psutil
 from PIL import ImageFont
-
-logger = logging.getLogger(__name__)
+from coloredlogs import ColoredFormatter, parse_encoded_styles
 
 # region 批处理任务的执行结果
 from datetime import datetime
@@ -536,23 +539,42 @@ class Netcat(object):
 
 # endregion
 
+def setup_colored_logger(logger: logging.Logger = None):
+    """
+    设置带颜色的日志记录器
+    """
+    coloredlogs.install(
+        logger=logger,
+        level='DEBUG',
+        fmt='%(asctime)s [%(levelname)s] %(name)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        level_styles={
+            'debug': {'color': 'cyan'},
+            'info': {'color': 'green'},
+            'warning': {'color': 'yellow'},
+            'error': {'color': 'red', 'bold': True},
+            'critical': {'color': 'red', 'bold': True, 'background': 'white'},
+        },
+        field_styles={
+            'asctime': {'color': 'green'},
+            'levelname': {'color': 'magenta', 'bold': True},
+            'name': {'color': 'blue'},
+        }
+    )
 
-if __name__ == '__main__':
-    # print(UUID.random(upper=True, formats=[(8, '-'), (12, '-'), (16, '-'), (20, '-')]))
-    # CommandLine.run_async("ping 360.com")
-    # print(Display.get_screen_resolution())
-    # print(ProcessManager.is_process_running("JianyingPro.exe"))
-    # print(Netcat.connect("localhost", 9222))
-    # 示例使用
-    class MyClass:
-        def __init__(self):
-            self.title1 = "First Title"
-            self.title2 = "Second Title"
-            self.title10 = "Tenth Title"
-            self.other_attr = "Not a title"
-            self.title3 = "Third Title"
 
+# region loguru日志
+def log_name(name):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            logger_ = logger.bind(name=name)
+            return func(logger_, *args, **kwargs)
 
-    obj = MyClass()
-    titles = Objects.pick_fields_values(obj, r"title\d+")
-    print(titles)
+        return wrapper
+    return decorator
+
+logger.remove()
+logger.add(sink=sys.stdout,
+               format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{extra[name]}</cyan> - <level>{message}</level>")
+# endregion
