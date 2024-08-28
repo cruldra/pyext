@@ -13,11 +13,8 @@ from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
 
 from config import app_config
-from pyext.commons import UUID, ProcessManager, IntRange
+from pyext.commons import UUID, ProcessManager, IntRange, Size, ContextLogger
 from pyext.io import JsonFile, Directory, GitRepository
-
-logger = logging.getLogger(__name__)
-
 
 class TimeRange(BaseModel):
     """
@@ -1602,11 +1599,6 @@ class Config(BaseModel):
 
 # region 草稿内容
 class DraftContent(BaseModel):
-    # canvas_config: CanvasConfig = field(default_factory=lambda: CanvasConfig(
-    #     height=1080,
-    #     ratio="original",
-    #     width=1920
-    # ))
     canvas_config: Optional[CanvasConfig] = None
     """画布配置"""
 
@@ -1729,6 +1721,13 @@ class JianYingDraft:
         """草稿内容JSON文件"""
         self.git_repo = None
         """Git仓库"""
+
+    def set_size(self, size:Size):
+        self.content.canvas_config = CanvasConfig(
+            height=size.height,
+            ratio=size.ratio,
+            width=size.width
+        )
 
     # region 删除草稿
     def delete(self):
@@ -2014,6 +2013,7 @@ class JianYingDesktop:
             bool: 如果成功启动剪映桌面版, 则返回True
         """
         # 已经启动则返回
+        ContextLogger.set_name("jianyingpro")
         if ProcessManager.is_process_running("JianyingPro.exe"):
             started = True
         else:
@@ -2023,17 +2023,17 @@ class JianYingDesktop:
 
             @retry(stop=stop_after_delay(15), wait=wait_fixed(2))
             def wait_jianying_main_window():
-                logger.info("正在等待剪映主窗口打开...")
+                ContextLogger.info("正在等待剪映主窗口打开...")
                 if not cc.is_existing(locator.jianyingpro.剪映主窗口):
                     raise Exception("剪映主窗口未打开")
                 return True
 
             started = wait_jianying_main_window()
 
-        logger.info(f"剪映桌面版启动{'成功' if started else '失败'}")
+        ContextLogger.info(f"剪映桌面版启动{'成功' if started else '失败'}")
         # 如果启动成功且弹出了草稿列表异常提示窗口,则点击取消按钮
         if started and cc.is_existing(locator.jianyingpro.草稿列表异常提示窗口):
-            logger.info("处理草稿列表异常提示窗口")
+            ContextLogger.info("处理草稿列表异常提示窗口")
             ui(locator.jianyingpro.草稿列表异常窗口上的取消按钮).click()
         return started
 
@@ -2163,6 +2163,7 @@ class JianYingDesktop:
         Returns:
             bool: 如果成功更改音色, 则返回True
         """
+        ContextLogger.set_name("jianyingpro")
         # 视频轨道必须处于选中状态才能更改音色
         if not cc.is_existing(locator.jianyingpro.视频轨道):
             raise Exception("无法更换音色, 因为未找到视频轨道")
@@ -2174,7 +2175,7 @@ class JianYingDesktop:
         # 移动鼠标到"添加数字人"tab标签的中心位置
         image_center_point = pyautogui.center(image_location)
         center_point_x, center_point_y = image_center_point
-        logger.info("找到更换音色的tab标签,位于(%s,%s)", center_point_x, center_point_y)
+        ContextLogger.info(f"找到更换音色的tab标签,位于{center_point_x},{center_point_y}")
         pyautogui.click(center_point_x, center_point_y)
 
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
@@ -2222,7 +2223,7 @@ class JianYingDesktop:
             如果数字人生成成功, 则返回数字人视频文件
         """
         self.select_text_segment(text_segment_index_range)
-
+        ContextLogger.set_name("jianyingpro")
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
         def wait_digital_human_tab():
             """在5秒内等待文本轨道选择后出现"添加数字人"tab标签"""
@@ -2292,18 +2293,18 @@ class JianYingDesktop:
             @retry(stop=stop_after_delay(self.render_digital_human_timeout), wait=wait_fixed(3))
             def wait_video_file():
                 try:
-                    logger.info("正在等待视频渲染...")
+                    ContextLogger.info("正在等待视频渲染...")
                     self.draft.reload()
                     digital_human_local_task_id = self.draft.get_digit_human(0).local_task_id
                     digital_human_video_dir = Directory(
                         str(self.draft_root_path / f"{self.draft.name}/Resources/digitalHuman"))
                     digital_human_video_file = digital_human_video_dir.find_file(f"{digital_human_local_task_id}.mp4")
                     if digital_human_video_file is None:
-                        logger.info(f"{digital_human_video_dir.path}目录下未找到{digital_human_local_task_id}.mp4文件")
+                        ContextLogger.info(f"{digital_human_video_dir.path}目录下未找到{digital_human_local_task_id}.mp4文件")
                         raise Exception(f"数字人视频文件未生成")
                     return digital_human_video_file
                 except Exception as e:
-                    logger.error(e)
+                    ContextLogger.error(e)
                     raise e
 
             return wait_video_file()

@@ -1,25 +1,23 @@
+import ctypes
 import logging
-import os
 import re
 import socket
+import subprocess
 import sys
 import time
 import uuid
-from datetime import datetime
-from typing import Tuple, Any
-import subprocess
+from contextvars import ContextVar
 from dataclasses import dataclass
-import ctypes
+# region 批处理任务的执行结果
+from datetime import datetime
 from functools import wraps
-from loguru import logger
+from typing import List, Any, Dict
+from typing import Tuple
+
 import coloredlogs
 import psutil
 from PIL import ImageFont
-from coloredlogs import ColoredFormatter, parse_encoded_styles
-
-# region 批处理任务的执行结果
-from datetime import datetime
-from typing import List, Any, Dict
+from loguru import logger
 
 
 class BatchProcessingResult:
@@ -431,6 +429,7 @@ class ProcessManager(object):
         :param process_name: 进程名称
         :param timeout: 等待进程终止的超时时间（秒）
         """
+        ContextLogger.set_name("process_manager")
         processes = cls.get_processes_by_name(process_name)
         if not processes:
             return
@@ -439,25 +438,25 @@ class ProcessManager(object):
             try:
                 pid = proc.pid
                 proc.terminate()
-                logger.info(f"Terminating process {pid} ({proc.name()})...")
+                ContextLogger.info(f"Terminating process {pid} ({proc.name()})...")
 
                 # 等待进程终止
                 proc.wait(timeout=timeout)
 
             except psutil.NoSuchProcess:
-                logger.info(f"Process {pid} no longer exists.")
+                ContextLogger.info(f"Process {pid} no longer exists.")
             except psutil.AccessDenied:
-                logger.info(f"Access denied to terminate process {pid}.")
+                ContextLogger.info(f"Access denied to terminate process {pid}.")
             except psutil.TimeoutExpired:
-                logger.info(f"Process {pid} did not terminate in time, forcefully killing it.")
+                ContextLogger.info(f"Process {pid} did not terminate in time, forcefully killing it.")
                 proc.kill()
 
         # 再次检查进程是否还存在
         remaining = cls.get_processes_by_name(process_name)
         if remaining:
-            logger.info(f"Warning: {len(remaining)} processes with name '{process_name}' still running.")
+            ContextLogger.info(f"Warning: {len(remaining)} processes with name '{process_name}' still running.")
         else:
-            logger.info(f"All processes with name '{process_name}' have been terminated.")
+            ContextLogger.info(f"All processes with name '{process_name}' have been terminated.")
 
     @classmethod
     def kill_process_by_pid(cls, pid: int):
@@ -466,11 +465,12 @@ class ProcessManager(object):
 
         :param pid: 进程ID
         """
+        ContextLogger.set_name("process_manager")
         try:
             process = psutil.Process(pid)
             process.kill()
         except Exception as e:
-            logger.error(f"无法杀死进程: {e}")
+            ContextLogger.error(f"无法杀死进程: {e}")
 
 
 # endregion
@@ -488,6 +488,7 @@ class Netcat(object):
         :param port: 目标端口
         :return: 如果连接成功, 则返回True, 否则返回False
         """
+        ContextLogger.set_name("netcat")
         try:
             # 创建一个 socket 对象
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -499,7 +500,7 @@ class Netcat(object):
             start_time = time.time()
 
             # 尝试连接
-            logger.info(f"正在连接 {ip} 端口 {port}...")
+            ContextLogger.info(f"正在连接 {ip} 端口 {port}...")
             s.connect((ip, port))
 
             # 计算连接时间
@@ -508,20 +509,20 @@ class Netcat(object):
             # 获取本地地址和端口
             local_address, local_port = s.getsockname()
 
-            logger.info(f"连接到 {ip} 端口 {port} 成功 从 {local_address}:{local_port}")
-            logger.info(f"连接耗时: {connection_time:.6f} 秒")
+            ContextLogger.info(f"连接到 {ip} 端口 {port} 成功 从 {local_address}:{local_port}")
+            ContextLogger.info(f"连接耗时: {connection_time:.6f} 秒")
 
             # 关闭连接
             s.close()
             return True
         except socket.timeout:
-            logger.info(f"连接超时: 无法在指定时间内连接到 {ip}:{port}")
+            ContextLogger.info(f"连接超时: 无法在指定时间内连接到 {ip}:{port}")
         except ConnectionRefusedError:
-            logger.info(f"连接被拒绝: {ip}:{port} 可能没有监听或被防火墙阻止")
+            ContextLogger.info(f"连接被拒绝: {ip}:{port} 可能没有监听或被防火墙阻止")
         except socket.gaierror:
-            logger.info(f"地址解析错误: 无法解析 {ip}")
+            ContextLogger.info(f"地址解析错误: 无法解析 {ip}")
         except Exception as e:
-            logger.info(f"发生错误: {e}")
+            ContextLogger.info(f"发生错误: {e}")
         return False
 
     @classmethod
@@ -577,4 +578,42 @@ def log_name(name):
 logger.remove()
 logger.add(sink=sys.stdout,
                format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{extra[name]}</cyan> - <level>{message}</level>")
+logger_name = ContextVar("logger_name", default="root")
+class ContextLogger:
+    @staticmethod
+    def set_name(name):
+        logger_name.set(name)
+
+    @staticmethod
+    def info(message):
+        logger.bind(name=logger_name.get()).info(message)
+
+    @staticmethod
+    def warning(message):
+        logger.bind(name=logger_name.get()).warning(message)
+
+    @staticmethod
+    def error(message):
+        logger.bind(name=logger_name.get()).error(message)
+    # 添加其他日志级别的方法...
 # endregion
+
+
+# region 表示尺寸
+class Size(object):
+    def __init__(self, width: int, height: int,ratio: str = None):
+        self.width = width
+        """宽度"""
+        self.height = height
+        """高度"""
+        self.ratio = ratio
+        """比例"""
+# endregion
+
+if __name__ == '__main__':
+    # 使用 ContextLogger
+    ContextLogger.set_name("main")
+    ContextLogger.info("这是主模块的日志")
+
+    ContextLogger.set_name("database")
+    ContextLogger.warning("数据库连接警告")
