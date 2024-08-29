@@ -1,6 +1,5 @@
 import http.server
 import json
-import logging
 import os.path
 import shutil
 import socketserver
@@ -9,6 +8,7 @@ from enum import Enum
 from pathlib import Path as PathlibPath
 from typing import TypeVar, Type, Optional, Union
 
+import docker
 import pysubs2
 import yaml
 from addict import Dict
@@ -17,7 +17,7 @@ from jsonpath_ng import parse
 from langdetect import detect, LangDetectException
 from pydantic import BaseModel
 
-from pyext.commons import CommandLine
+from pyext.commons import CommandLine, ContextLogger
 
 TF = TypeVar('TF', bound='File')
 TPM = TypeVar('TPM', bound=BaseModel)
@@ -30,6 +30,21 @@ class Ffmpeg(object):
 
     def __init__(self):
         super().__init__()
+
+    @classmethod
+    def from_env(cls):
+        """
+        自动
+
+        """
+        ContextLogger.set_name("ffmpeg")
+        try:
+            docker_client = docker.from_env()
+            ContextLogger.info("使用Docker运行ffmpeg")
+            return DockerFfmpeg(docker_client)
+        except:
+            ContextLogger.info("使用本地ffmpeg")
+            return LocalFfmpeg()
 
     def add_subtitle_to_video(self, video_file: 'VideoFile', subtitle_file: 'SubtitleFile',
                               new_name: str, font_directory: str) -> 'VideoFile':
@@ -56,7 +71,7 @@ class Ffmpeg(object):
             audio_type: 音频文件类型
 
         Returns:
-            音频文件
+            AudioFile: 音频文件对象
         """
         raise NotImplementedError()
 
@@ -67,6 +82,50 @@ class Ffmpeg(object):
         raise NotImplementedError()
 
 
+# region 本地安装的ffmpeg
+class LocalFfmpeg(Ffmpeg):
+    def __init__(self):
+        """
+        使用本地ffmpeg
+        """
+        super().__init__()
+
+    def video_to_audio(self, video_file: 'VideoFile', audio_type: Type[TAF]) -> TAF:
+        video_dir = str(video_file.path.parent)
+        audio_file_path = f"{video_dir}/{video_file.path.stem}.{audio_type.suffix}"
+        ContextLogger.set_name("ffmpeg")
+        command = (
+            f"ffmpeg -y -i  {str(video_file.path.absolute())} -q:a 0 -map a {audio_file_path}"
+        )
+        output = CommandLine.run_and_get(command)
+        ContextLogger.info(f"将视频转换为音频:{output.output}")
+        if audio_type == Mp3File:
+            return Mp3File(audio_file_path)
+        else:
+            raise ValueError(f"不支持的音频文件类型: {audio_type}")
+
+    def srt_to_ass(self, srt_file: 'SrtSubtitleFile') -> 'AssSubtitleFile':
+        ContextLogger.set_name("ffmpeg")
+        command = f"ffmpeg -y -i {str(srt_file.path.absolute())} {str(srt_file.path.stem)}.ass"
+        output = CommandLine.run_and_get(command)
+        ContextLogger.info(f"将srt字幕文件转换为ass字幕文件:{output.output}")
+        return AssSubtitleFile(str(srt_file.path.parent / f"{srt_file.path.stem}.ass"))
+
+    def add_subtitle_to_video(self, video_file: 'VideoFile', subtitle_file: 'SubtitleFile', new_name: str,
+                              font_directory: str) -> 'VideoFile':
+        ContextLogger.set_name("ffmpeg")
+        command = (
+            f"ffmpeg -y -i {str(video_file.path.absolute())} -vf 'ass={str(subtitle_file.path.absolute())}' -c:a copy {str(video_file.path.parent / new_name)}"
+        )
+        output = CommandLine.run_and_get(command)
+        ContextLogger.info(f"为视频添加字幕:{output.output}")
+        return VideoFile(str(video_file.path.parent / new_name))
+
+
+# endregion
+
+
+# region 基于docker的ffmpeg
 class DockerFfmpeg(Ffmpeg):
     def __init__(self, docker_client: DockerClient, ffmpeg_image: str = "ffmpeg:1.0"):
         """
@@ -79,13 +138,14 @@ class DockerFfmpeg(Ffmpeg):
         """使用的docker镜像"""
 
     def video_to_audio(self, video_file: 'VideoFile', audio_type: Type[TAF]) -> TAF:
+        ContextLogger.set_name("ffmpeg")
         command = (
             f"-y -i /tmp_app/{video_file.path.name} -q:a 0 -map a /tmp_app/{video_file.path.stem}.{audio_type.suffix}"
         )
         full_command = (
             f"docker run --rm -it -v {str(video_file.path.parent.absolute())}:/tmp_app {self.ffmpeg_image} {command}"
         )
-        logging.info(f"使用以下命令行先将视频文件转换为音频文件: {full_command}")
+        ContextLogger.info(f"使用以下命令行先将视频文件转换为音频文件: {full_command}")
         logs = (
             self.docker_client.containers.run(
                 self.ffmpeg_image,
@@ -98,18 +158,19 @@ class DockerFfmpeg(Ffmpeg):
             .decode("utf-8")
             .strip()
         )
-        logging.info(f"将视频文件转换为音频文件的日志: {logs}")
+        ContextLogger.info(f"将视频文件转换为音频文件的日志: {logs}")
         if audio_type == Mp3File:
             return Mp3File(str(video_file.path.parent / f"{video_file.path.stem}.{Mp3File.suffix}"))
         else:
             raise ValueError(f"不支持的音频文件类型: {audio_type}")
 
     def srt_to_ass(self, srt_file: 'SrtSubtitleFile') -> 'AssSubtitleFile':
+        ContextLogger.set_name("ffmpeg")
         command = f'-y -i /tmp_app/{srt_file.path.name} /tmp_app/{srt_file.path.stem}.ass'
         full_command = (
             f"docker run --rm -it -v {str(srt_file.path.parent.absolute())}:/tmp_app {self.ffmpeg_image} {command}"
         )
-        logging.info(f"使用以下命令行将srt字幕文件转换为ass字幕文件: {full_command}")
+        ContextLogger.info(f"使用以下命令行将srt字幕文件转换为ass字幕文件: {full_command}")
         logs = self.docker_client.containers.run(
             self.ffmpeg_image,
             command,
@@ -118,18 +179,19 @@ class DockerFfmpeg(Ffmpeg):
             tty=True,
             stdin_open=True
         ).decode('utf-8').strip()
-        logging.info(f"将srt字幕文件转换为ass字幕文件的日志: {logs}")
+        ContextLogger.info(f"将srt字幕文件转换为ass字幕文件的日志: {logs}")
         return AssSubtitleFile(str(srt_file.path.parent / f"{srt_file.path.stem}.ass"))
 
     def add_subtitle_to_video(self, video_file: 'VideoFile', subtitle_file: 'SubtitleFile',
                               new_name: str, font_directory: str) -> 'VideoFile':
+        ContextLogger.set_name("ffmpeg")
         command = (
             f"-y -i /tmp_app/{video_file.path.name} -vf 'ass=/tmp_app/{subtitle_file.path.name}' -c:a copy /tmp_app/{new_name}"
         )
         full_command = (
             f"docker run --rm -it -v {str(video_file.path.parent.absolute())}:/tmp_app {self.ffmpeg_image} {command}"
         )
-        logging.info(f"使用以下命令行为视频添加字幕: {full_command}")
+        ContextLogger.info(f"使用以下命令行为视频添加字幕: {full_command}")
         logs = (
             self.docker_client.containers.run(
                 self.ffmpeg_image,
@@ -144,11 +206,13 @@ class DockerFfmpeg(Ffmpeg):
             .decode("utf-8")
             .strip()
         )
-        logging.info(f"为视频添加字幕的日志: {logs}")
+        ContextLogger.info(f"为视频添加字幕的日志: {logs}")
         return VideoFile(str(video_file.path.parent / new_name))
 
 
 # endregion
+# endregion
+
 
 # region aeneas
 class LanguageCode(str, Enum):
@@ -263,6 +327,21 @@ class Aeneas(object):
         super().__init__()
 
     @classmethod
+    def from_env(cls):
+        """
+        自动
+
+        """
+        ContextLogger.set_name("ffmpeg")
+        try:
+            docker_client = docker.from_env()
+            ContextLogger.info("使用Docker运行aeneas")
+            return DockerAeneas(docker_client)
+        except:
+            ContextLogger.info("使用本地aeneas")
+            return LocalAeneas()
+
+    @classmethod
     def detect_language(cls, text: str) -> LanguageCode | None:
         """
         检测文本的语言
@@ -296,6 +375,31 @@ class Aeneas(object):
     # endregion
 
 
+class LocalAeneas(Aeneas):
+
+    def __init__(self):
+        """
+        使用本地aeneas
+        """
+        super().__init__()
+
+    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None) -> 'SrtSubtitleFile':
+        ContextLogger.set_name("aeneas")
+        language_code = language_code or LanguageCode.from_langdetect(self.detect_language(text))
+        content_text_file = File(str(audio_file.path.parent / f"{audio_file.path.stem}-content.txt"))
+        content_text_file.write_content(text)
+        command = (
+            "python -m aeneas.tools.execute_task "
+            f"{str(audio_file.path.absolute())} {str(content_text_file.path.absolute())} "
+            f"'task_language={language_code.value}|os_task_file_format=srt|is_text_type=plain' "
+            f"{str(audio_file.path.parent / audio_file.path.stem)}.srt;\""
+        )
+        ContextLogger.info(f"使用以下命令行先将音频文件与文本强制对齐: {command}")
+        logs = CommandLine.run_and_get(command).output
+        ContextLogger.info(f"将音频文件与文本强制对齐的日志: {logs}")
+        return SrtSubtitleFile(str(audio_file.path.parent / f"{audio_file.path.stem}.srt"))
+
+
 class DockerAeneas(Aeneas):
     def __init__(self, docker_client: DockerClient, aeneas_image: str = "dongjak/aeneas"):
         """
@@ -308,6 +412,7 @@ class DockerAeneas(Aeneas):
         """使用的docker镜像"""
 
     def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None) -> 'SrtSubtitleFile':
+        ContextLogger.set_name("aeneas")
         language_code = language_code or LanguageCode.from_langdetect(self.detect_language(text))
         content_text_file = File(str(audio_file.path.parent / f"{audio_file.path.stem}-content.txt"))
         content_text_file.write_content(text)
@@ -323,7 +428,7 @@ class DockerAeneas(Aeneas):
         full_command = (
             f"docker run --rm -it -v {local_mapping_dir}:/tmp_app {self.aeneas_image} {command}"
         )
-        logging.info(f"使用以下命令行先将音频文件与文本强制对齐: {full_command}")
+        ContextLogger.info(f"使用以下命令行先将音频文件与文本强制对齐: {full_command}")
         logs = self.docker_client.containers.run(
             self.aeneas_image,
             command,
@@ -332,7 +437,7 @@ class DockerAeneas(Aeneas):
             tty=True,
             stdin_open=True
         ).decode('utf-8').strip()
-        logging.info(f"将音频文件与文本强制对齐的日志: {logs}")
+        ContextLogger.info(f"将音频文件与文本强制对齐的日志: {logs}")
         return SrtSubtitleFile(str(audio_file.path.parent / f"{audio_file.path.stem}.srt"))
 
 
@@ -394,7 +499,7 @@ class File(object):
         shutil.move(str(self.path), str(target_path))
         return File(str(target_path))
 
-    #这里有个前向引用，所以用字符串, 参考https://poe.com/s/kxbWkhgiPORnv2D02LUJ
+    # 这里有个前向引用，所以用字符串, 参考https://poe.com/s/kxbWkhgiPORnv2D02LUJ
     def copy_to(self, target: 'str | Directory') -> 'File':
         """
         复制文件到新路径
@@ -413,6 +518,7 @@ class File(object):
 
         shutil.copy2(str(self.path), str(target_path))
         return File(str(target_path))
+
 
 # region 字幕文件
 
@@ -529,7 +635,8 @@ class VideoFile(File):
         Returns:
             tuple[int, int]: 宽度, 高度
         """
-        result = CommandLine.run_and_get(f"ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 \"{self.path.absolute()}\"")
+        result = CommandLine.run_and_get(
+            f"ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 \"{self.path.absolute()}\"")
         width, height = result.output.strip().split("x")
         return int(width), int(height)
 
@@ -545,8 +652,11 @@ class VideoFile(File):
             VideoFile: 新的视频文件对象
         """
         new_video_file = self.path.parent / f"{self.path.stem}-resized.mp4"
-        output =CommandLine.run_and_get(f"""ffmpeg -i "{str(self.path.absolute())}" -vf scale={new_width}:{new_height} -c:a copy  "{str(new_video_file.absolute())}" """)
+        output = CommandLine.run_and_get(
+            f"""ffmpeg -i "{str(self.path.absolute())}" -vf scale={new_width}:{new_height} -c:a copy  "{str(new_video_file.absolute())}" """)
         return VideoFile(str(new_video_file))
+
+
 # endregion
 
 
@@ -934,7 +1044,8 @@ if __name__ == '__main__':
     # print(Directory("../.data/videos").as_static_file_server())
     # time.sleep(1000)
     # pass
-    video_file = VideoFile(r"C:\Users\cruld\Documents\WeChat Files\wxid_gsdq4x6zge5a12\FileStorage\Video\2024-08\output.mp4")
+    video_file = VideoFile(
+        r"C:\Users\cruld\Documents\WeChat Files\wxid_gsdq4x6zge5a12\FileStorage\Video\2024-08\output.mp4")
     # print(video_file.resolution)
     new_video_file = video_file.resize(1080, 1920)
     print(new_video_file.exists())
