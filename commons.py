@@ -331,10 +331,13 @@ class CommandLine(object):
         """
         阻塞方式运行命令,返回命令行输出
 
-        :param command: 命令行命令
-        :param cwd: 工作目录
-        :param encoding: 编码
-        :return: 命令行输出
+        Args:
+            command: 命令行命令
+            cwd: 工作目录
+            encoding: 编码
+
+        Returns:
+            CommandLineOutput: 命令行输出
         """
         process = cls.run(command, cwd, encoding)
         stdout, stderr = process.communicate()
