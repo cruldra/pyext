@@ -1,4 +1,5 @@
 import logging
+import math
 import shutil
 import subprocess
 import time
@@ -8,6 +9,7 @@ from typing import List, Union, Any, Optional
 
 import pyautogui
 import pyperclip
+from PIL import ImageFont
 from clicknium import clicknium as cc, ui, locator
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
@@ -2312,3 +2314,50 @@ class JianYingDesktop:
 
 
 # endregion
+
+
+def calculate_max_chars_per_line(screen_width, font_path, font_size, margin_left, margin_right):
+    """
+    计算每行最多可以容纳的字数
+
+    Args:
+    screen_width (int): 屏幕宽度（像素）
+    font_path (str): 字体文件路径
+    font_size (int): 字体大小
+    margin_left (int): 左边距（像素）
+    margin_right (int): 右边距（像素）
+
+    Returns:
+    int: 每行最多可以容纳的字数
+    """
+    # 加载字体
+    font = ImageFont.truetype(font_path, font_size)
+
+    # 计算可用宽度（像素）
+    available_width = screen_width - margin_left - margin_right
+
+    # 使用一个包含各种字符的样本文本
+    sample_text = "中"
+
+    # 计算字符宽度
+    char_width = font.getbbox(sample_text)[2]
+
+    # 计算平均字符宽度
+    #avg_char_width = total_width / len(sample_text)
+
+    # 计算每行可容纳的字符数并向下取整
+    max_chars = math.floor(available_width / char_width)
+
+    return max_chars
+
+
+if __name__ == '__main__':
+    # 使用示例
+    screen_width = 1920  # 假设屏幕宽度为 1920 像素
+    font_path = "../resources/fonts/华文中宋.ttf"  # 替换为实际的字体文件路径
+    font_size = 40
+    margin_left = 100
+    margin_right = 100
+
+    max_chars = calculate_max_chars_per_line(screen_width, font_path, font_size, margin_left, margin_right)
+    print(f"每行最多可以容纳 {max_chars} 个字符")

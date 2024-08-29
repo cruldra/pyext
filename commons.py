@@ -1,9 +1,11 @@
 import ctypes
 import logging
+import math
 import re
 import socket
 import subprocess
 import sys
+import textwrap
 import time
 import uuid
 from contextvars import ContextVar
@@ -16,6 +18,7 @@ from typing import Tuple
 
 import coloredlogs
 import psutil
+import pysubs2
 from PIL import ImageFont
 from loguru import logger
 
@@ -79,7 +82,7 @@ print(summary)
         self.additional_info: Dict[str, Any] = {}
         """额外信息"""
 
-    def complete(self, end_time: datetime =None ,fail_threshold: int = None):
+    def complete(self, end_time: datetime = None, fail_threshold: int = None):
         """
         完成任务
 
@@ -215,6 +218,19 @@ class Text(object):
     def __init__(self, value: str):
         self.value = value
 
+    def remove_spaces_and_newlines(self):
+        """
+        删除所有空格和换行符
+
+        Returns:
+            Text: 新的文本对象
+        """
+        # 删除所有空格
+        text = self.value.replace(" ", "")
+        # 删除所有换行符（包括 \n 和 \r）
+        text = text.replace("\n", "").replace("\r", "")
+        return Text(text)
+
     def break_lines(self, pattern: str):
         """
         对文本进行断行
@@ -242,7 +258,15 @@ class Text(object):
         width, height = font.getbbox(self.value)[2:]
         return width, height
 
+    def convert_to_pysubs2Color(self):
+        """
+        把`rgba(r,g,b,a)`格式的字符串转换为`pysubs2.Color`对象
 
+        Returns:
+            pysubs2.Color: 颜色对象
+        """
+        data = tuple(map(lambda v: int(float(v)), self.value.replace("rgba(", "").replace(")", "").split(",")))
+        return pysubs2.Color(data[0], data[1], data[2], data[3])
 # endregion
 
 # region 对象工具
@@ -576,12 +600,16 @@ def log_name(name):
             return func(logger_, *args, **kwargs)
 
         return wrapper
+
     return decorator
+
 
 logger.remove()
 logger.add(sink=sys.stdout,
-               format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{extra[name]}</cyan> - <level>{message}</level>")
+           format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{extra[name]}</cyan> - <level>{message}</level>")
 logger_name = ContextVar("logger_name", default="root")
+
+
 class ContextLogger:
     @staticmethod
     def set_name(name):
@@ -599,24 +627,32 @@ class ContextLogger:
     def error(message):
         logger.bind(name=logger_name.get()).error(message)
     # 添加其他日志级别的方法...
+
+
 # endregion
 
 
 # region 表示尺寸
 class Size(object):
-    def __init__(self, width: int, height: int,ratio: str = None):
+    def __init__(self, width: int, height: int, ratio: str = None):
         self.width = width
         """宽度"""
         self.height = height
         """高度"""
         self.ratio = ratio
         """比例"""
+
+
 # endregion
 
 if __name__ == '__main__':
     # 使用 ContextLogger
-    ContextLogger.set_name("main")
-    ContextLogger.info("这是主模块的日志")
+    # ContextLogger.set_name("main")
+    # ContextLogger.info("这是主模块的日志")
+    #
+    # ContextLogger.set_name("database")
+    # ContextLogger.warning("数据库连接警告")
 
-    ContextLogger.set_name("database")
-    ContextLogger.warning("数据库连接警告")
+    # 使用示例
+
+    pass

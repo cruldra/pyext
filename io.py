@@ -6,7 +6,7 @@ import socketserver
 import textwrap
 from enum import Enum
 from pathlib import Path as PathlibPath
-from typing import TypeVar, Type, Optional, Union
+from typing import TypeVar, Type, Optional, Union, Any
 
 import docker
 import pysubs2
@@ -16,8 +16,9 @@ from docker import DockerClient
 from jsonpath_ng import parse
 from langdetect import detect, LangDetectException
 from pydantic import BaseModel
+from pysubs2 import SSAEvent
 
-from pyext.commons import CommandLine, ContextLogger
+from pyext.commons import CommandLine, ContextLogger, Text
 
 TF = TypeVar('TF', bound='File')
 TPM = TypeVar('TPM', bound=BaseModel)
@@ -533,11 +534,14 @@ class SrtSubtitleFile(SubtitleFile):
         super().__init__(path)
 
 
+# region ass字幕
 class AssSubtitleFile(SubtitleFile):
     def __init__(self, path: str):
         super().__init__(path)
         self.subs = pysubs2.load(path)
 
+    def set_info(self,info:[str,str]):
+        self.subs.info=info
     def set_resolution(self, width: int, height: int):
         """
         设置分辨率
@@ -549,6 +553,69 @@ class AssSubtitleFile(SubtitleFile):
         self.subs.info["PlayResX"] = str(width)
         self.subs.info["PlayResY"] = str(height)
         self.subs.save(str(self.path))
+
+    def move_to(self, target_path: str) -> 'AssSubtitleFile':
+        file = super().move_to(target_path)
+        return AssSubtitleFile(str(file.path.absolute()))
+
+    def copy_to(self, target: 'str | Directory') -> 'AssSubtitleFile':
+        file = super().copy_to(target)
+        return AssSubtitleFile(str(file.path.absolute()))
+
+    @property
+    def events(self):
+        return self.subs.events
+
+
+    @events.setter
+    def events(self,events:list[SSAEvent]):
+        """
+        设定事件
+
+        Args:
+            events: 事件列表
+        """
+        self.subs.events = events
+
+    @property
+    def styles(self):
+        """
+        获取样式
+
+        Returns:
+            dict[str, pysubs2.SSAStyle]: 样式,键是样式名, 值是SSAStyle
+        """
+        return self.subs.styles
+
+    @styles.setter
+    def styles(self,styles:dict[str, pysubs2.SSAStyle]):
+        """
+        设定样式
+
+        Args:
+            styles: 样式
+        """
+        self.subs.styles = styles
+
+    @property
+    def width(self):
+        """
+        获取宽度
+
+        Returns:
+            int: 宽度
+        """
+        return int(self.subs.info["PlayResX"])
+
+    @property
+    def height(self):
+        """
+        获取高度
+
+        Returns:
+            int: 高度
+        """
+        return int(self.subs.info["PlayResY"])
 
     def create_style(self, style_name: str, **kwargs):
         """
@@ -574,19 +641,58 @@ class AssSubtitleFile(SubtitleFile):
                 event.style = style_name
         self.subs.save(str(self.path))
 
-    def set_max_width(self, max_width: int):
+
+    def apply_style_by_index(self, index: int):
+        """
+        应用样式
+
+        Args:
+            index: 样式索引
+        """
+        style_name = list(self.subs.styles.keys())[index]
+        self.apply_style(style_name)
+
+
+
+    def set_max_width(self, max_width: int,
+                      font_path: str,
+                      font_size: int,
+                      margin_left: int = 20, margin_right: int = 20
+                      ):
         """
         设置最大宽度
 
         Args:
             max_width: 最大宽度
+            font_path: 字体路径
+            font_size: 字号
+            margin_left: 左边距
+            margin_right: 右边距
         """
         new_events = []
         for i, event in enumerate(self.subs.events):
             lines = textwrap.wrap(event.text.strip(), width=max_width)
-            new_line = r"\N".join(lines)
+            # region 固定位置
+            # line_start_y = self.height - (100+len(lines)*10)
+            # for line in lines:
+            #     # new_events.append(
+            #     #     pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=line))
+            #     text_width, text_height = Text(line).calculate_text_width(font_path, font_size)
+            #     pos_x = (self.width - text_width) // 2
+            #     new_line = f"{{\\\\an1\\\\pos({pos_x},{line_start_y})}}" + line
+            #     new_events.append(
+            #         pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=new_line))
+            #     line_start_y += text_height+10
+            # endregion
+
+            # region 自动位置
+            new_line = r"\N\N".join(lines)
             new_events.append(
                 pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=new_line))
+            # endregion
+
+            # new_events.append(
+            #     pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=new_line))
             # for line in lines:
 
             # text_width, text_height = Text(line).calculate_text_width( "resources/fonts/华文细黑.ttf", 36)
@@ -597,6 +703,9 @@ class AssSubtitleFile(SubtitleFile):
             # line_start_y += text_height
         self.subs.events = new_events
         self.subs.save(str(self.path))
+
+
+# endregion
 
 
 # endregion
@@ -935,6 +1044,21 @@ class Directory(object):
         列出目录下的所有json文件
         """
         return [JsonFile(str(f)) for f in self.path.iterdir() if f.is_file() and f.suffix == ".json"]
+
+    def list_ass_files(self):
+        """
+        列出目录下的所有ass文件
+        """
+        ContextLogger.set_name("io")
+        def parse(f):
+            try:
+                return AssSubtitleFile(str(f))
+            except:
+                ContextLogger.info(f"无法将文件{f}读取为一个ass文件")
+                return None
+        ret = [parse(f) for f in self.path.iterdir() if f.is_file() and f.suffix == ".ass"]
+
+        return [f for f in ret if f is not None]
 
     def as_static_file_server(self, host: str = "localhost", port: int = 8000):
         """
