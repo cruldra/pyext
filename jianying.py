@@ -57,7 +57,7 @@ class ImageMaterial(BaseModel):
     import_time_ms: Optional[int] = None
     """导入时间,以微秒为单位"""
 
-    item_source: Optional[str] = None
+    item_source: Optional[str | int] = None
     """素材来源"""
 
     md5: Optional[str] = None
@@ -459,8 +459,21 @@ class Stable(BaseModel):
     """时间范围"""
 
 
+class Algorithm(BaseModel):
+    algorithm_id: str = ""
+    """算法ID"""
+    type: str = ""
+    """类型"""
+
+class NoiseReduction(BaseModel):
+    """
+    降噪
+    """
+    level: int = 0
+    """等级"""
+
 class VideoAlgorithm(BaseModel):
-    algorithms: List[str] = ()
+    algorithms: List[Algorithm] = field(default_factory=list)
     """算法"""
 
     complement_frame_config: Optional[str] = None
@@ -475,7 +488,7 @@ class VideoAlgorithm(BaseModel):
     motion_blur_config: Optional[str] = None
     """运动模糊配置"""
 
-    noise_reduction: Optional[str] = None
+    noise_reduction: Optional[NoiseReduction] =  None
     """降噪"""
 
     path: str = ""
@@ -984,6 +997,53 @@ class TextContent(BaseModel):
     """文本"""
 
 
+class TextMaterialFont(BaseModel):
+    category_id: str
+    """
+    分类ID
+    """
+    category_name: str
+    """
+    分类名称
+    """
+    effect_id: str
+    """
+    效果ID
+    """
+    file_uri: str
+    """
+    文件URI
+    """
+    id: str
+    """
+    Id
+    """
+    path: str
+    """
+    路径
+    """
+    request_id: str
+    """
+    请求ID
+    """
+    resource_id: str
+    """
+    资源ID
+    """
+    source_platform: int
+    """
+    来源平台
+    """
+    team_id: str
+    """
+    团队ID
+    """
+    title: str
+    """
+    标题
+    """
+
+
 class TextMaterial(BaseModel):
     add_type: int = 0
     """添加类型"""
@@ -1081,7 +1141,7 @@ class TextMaterial(BaseModel):
     font_url: str = ""
     """字体URL"""
 
-    fonts: List[str] = ()
+    fonts: List[TextMaterialFont] = field(default_factory=list)
     """字体"""
 
     force_apply_line_max_width: bool = False

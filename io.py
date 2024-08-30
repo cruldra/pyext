@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from pysubs2 import SSAEvent
 
 from pyext.commons import CommandLine, ContextLogger
+from pyext.exceptions import parse_exceptions
 
 TF = TypeVar('TF', bound='File')
 TPM = TypeVar('TPM', bound=BaseModel)
@@ -914,11 +915,19 @@ class JsonFile(File):
         """
         读取文件内容并将其转换为 Pydantic 模型
 
-        :param model: Pydantic 模型
-        :return: Pydantic 模型实例
+        Args:
+            model: Pydantic 模型
+        Returns:
+            Pydantic 模型实例
+
+        Raises:
+            BusinessException: 读取文件内容失败时抛出异常
         """
         with open(self.path, 'r', encoding="utf-8") as file:
-            return model(**self.read_as_addict())
+            try:
+                return model(**self.read_as_addict())
+            except Exception as e:
+                raise parse_exceptions(e)
 
 
 # endregion
