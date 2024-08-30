@@ -1695,6 +1695,28 @@ class DraftContent(BaseModel):
 # region 剪映草稿
 class JianYingDraft:
 
+    @classmethod
+    def load_from_dir(cls, draft_dir: str) -> 'JianYingDraft':
+        """
+        从目录加载剪映草稿
+
+        Args:
+            draft_dir: 草稿目录
+
+        Returns:
+            JianYingDraft   剪映草稿对象
+
+        Raises:
+            ValueError: 草稿目录不存在
+        """
+        draft_dir = Directory(draft_dir, False)
+        if not draft_dir.path.exists():
+            raise ValueError(f"草稿目录不存在: {draft_dir}")
+        content_json_file = JsonFile(str(draft_dir.path.joinpath("draft_content.json")))
+        meta_json_file = JsonFile(str(draft_dir.path.joinpath("draft_meta_info.json")))
+        return cls(draft_dir.name, meta_json_file.read_as_pydanitc_model(DraftMetaInfo),
+                   content_json_file.read_as_pydanitc_model(DraftContent), str(draft_dir.path))
+
     def __init__(self, name: str, meta: DraftMetaInfo = None, content: DraftContent = None,
                  draft_root_path: str = None):
         """
@@ -1723,7 +1745,7 @@ class JianYingDraft:
         self.git_repo = None
         """Git仓库"""
 
-    def set_size(self, size:Size):
+    def set_size(self, size: Size):
         self.content.canvas_config = CanvasConfig(
             height=size.height,
             ratio=size.ratio,
@@ -1986,24 +2008,24 @@ class JianYingDesktop:
 
     # endregion
 
-
-    #region 窗口全屏
+    # region 窗口全屏
     def full_screen(self):
         """
         全屏
         """
         taskbar_size = ui(locator.explorer.任务栏).get_size()
-        window , type = self.activate()
+        window, type = self.activate()
         window_size = window.get_size()
-        window_size= (window_size.Width,window_size.Height)
+        window_size = (window_size.Width, window_size.Height)
         screen_size = pyautogui.size()
-        screen_size = (screen_size.width,screen_size.height-taskbar_size.Height)
+        screen_size = (screen_size.width, screen_size.height - taskbar_size.Height)
         if window and window_size != screen_size:
             if type == 1:
                 ui(locator.jianyingpro.主窗口最大化按钮).click()
             elif type == 2:
                 ui(locator.jianyingpro.剪辑窗口最大化按钮).click()
-    #endregion
+
+    # endregion
 
     # region 打开剪映桌面版
     def start_process(self):
@@ -2091,13 +2113,13 @@ class JianYingDesktop:
         if wait_draft_search_result():
             ui(locator.jianyingpro.草稿列表中的第一个元素).click()
 
-        #最后等待剪辑窗口出现
+        # 最后等待剪辑窗口出现
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
         def wait_edit_window():
             if not cc.is_existing(locator.jianyingpro.剪辑窗口):
                 raise Exception("剪辑窗口未打开")
             return True
-        
+
         if wait_edit_window():
             self.draft = draft
             return True
@@ -2146,11 +2168,12 @@ class JianYingDesktop:
         if cc.is_existing(locator.jianyingpro.剪辑窗口, timeout=5):
             ui_element = ui(locator.jianyingpro.剪辑窗口)
             ui_element.set_focus()
-            return ui_element,2
+            return ui_element, 2
         elif cc.is_existing(locator.jianyingpro.剪映主窗口, timeout=5):
             ui_element = ui(locator.jianyingpro.剪映主窗口)
             ui_element.set_focus()
-            return ui_element,1
+            return ui_element, 1
+
     # endregion
 
     # region 更改音色
@@ -2225,6 +2248,7 @@ class JianYingDesktop:
         """
         self.select_text_segment(text_segment_index_range)
         ContextLogger.set_name("jianyingpro")
+
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
         def wait_digital_human_tab():
             """在5秒内等待文本轨道选择后出现"添加数字人"tab标签"""
@@ -2301,7 +2325,8 @@ class JianYingDesktop:
                         str(self.draft_root_path / f"{self.draft.name}/Resources/digitalHuman"))
                     digital_human_video_file = digital_human_video_dir.find_file(f"{digital_human_local_task_id}.mp4")
                     if digital_human_video_file is None:
-                        ContextLogger.info(f"{digital_human_video_dir.path}目录下未找到{digital_human_local_task_id}.mp4文件")
+                        ContextLogger.info(
+                            f"{digital_human_video_dir.path}目录下未找到{digital_human_local_task_id}.mp4文件")
                         raise Exception(f"数字人视频文件未生成")
                     return digital_human_video_file
                 except Exception as e:
@@ -2342,7 +2367,7 @@ def calculate_max_chars_per_line(screen_width, font_path, font_size, margin_left
     char_width = font.getbbox(sample_text)[2]
 
     # 计算平均字符宽度
-    #avg_char_width = total_width / len(sample_text)
+    # avg_char_width = total_width / len(sample_text)
 
     # 计算每行可容纳的字符数并向下取整
     max_chars = math.floor(available_width / char_width)

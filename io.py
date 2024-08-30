@@ -6,7 +6,7 @@ import socketserver
 import textwrap
 from enum import Enum
 from pathlib import Path as PathlibPath
-from typing import TypeVar, Type, Optional, Union, Any
+from typing import TypeVar, Type, Optional
 
 import docker
 import pysubs2
@@ -18,7 +18,7 @@ from langdetect import detect, LangDetectException
 from pydantic import BaseModel
 from pysubs2 import SSAEvent
 
-from pyext.commons import CommandLine, ContextLogger, Text
+from pyext.commons import CommandLine, ContextLogger
 
 TF = TypeVar('TF', bound='File')
 TPM = TypeVar('TPM', bound=BaseModel)
@@ -540,8 +540,9 @@ class AssSubtitleFile(SubtitleFile):
         super().__init__(path)
         self.subs = pysubs2.load(path)
 
-    def set_info(self,info:[str,str]):
-        self.subs.info=info
+    def set_info(self, info: [str, str]):
+        self.subs.info = info
+
     def set_resolution(self, width: int, height: int):
         """
         设置分辨率
@@ -566,9 +567,8 @@ class AssSubtitleFile(SubtitleFile):
     def events(self):
         return self.subs.events
 
-
     @events.setter
-    def events(self,events:list[SSAEvent]):
+    def events(self, events: list[SSAEvent]):
         """
         设定事件
 
@@ -588,7 +588,7 @@ class AssSubtitleFile(SubtitleFile):
         return self.subs.styles
 
     @styles.setter
-    def styles(self,styles:dict[str, pysubs2.SSAStyle]):
+    def styles(self, styles: dict[str, pysubs2.SSAStyle]):
         """
         设定样式
 
@@ -641,7 +641,6 @@ class AssSubtitleFile(SubtitleFile):
                 event.style = style_name
         self.subs.save(str(self.path))
 
-
     def apply_style_by_index(self, index: int):
         """
         应用样式
@@ -651,8 +650,6 @@ class AssSubtitleFile(SubtitleFile):
         """
         style_name = list(self.subs.styles.keys())[index]
         self.apply_style(style_name)
-
-
 
     def set_max_width(self, max_width: int,
                       font_path: str,
@@ -950,6 +947,13 @@ class Directory(object):
         """
         return str(self.path.absolute())
 
+    @property
+    def name(self):
+        """
+        获取这个目录的名称
+        """
+        return self.path.name
+
     # region 删除目录
     def delete(self):
         """
@@ -1050,12 +1054,14 @@ class Directory(object):
         列出目录下的所有ass文件
         """
         ContextLogger.set_name("io")
+
         def parse(f):
             try:
                 return AssSubtitleFile(str(f))
             except:
                 ContextLogger.info(f"无法将文件{f}读取为一个ass文件")
                 return None
+
         ret = [parse(f) for f in self.path.iterdir() if f.is_file() and f.suffix == ".ass"]
 
         return [f for f in ret if f is not None]
