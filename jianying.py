@@ -1,4 +1,3 @@
-import logging
 import math
 import shutil
 import subprocess
@@ -14,9 +13,9 @@ from clicknium import clicknium as cc, ui, locator
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
 
-from config import app_config
 from pyext.commons import UUID, ProcessManager, IntRange, Size, ContextLogger
 from pyext.io import JsonFile, Directory, GitRepository
+
 
 class TimeRange(BaseModel):
     """
