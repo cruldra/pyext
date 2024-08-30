@@ -15,6 +15,7 @@ from tenacity import retry, stop_after_attempt, stop_after_delay, wait_fixed
 
 from pyext.commons import UUID, ProcessManager, IntRange, Size, ContextLogger
 from pyext.io import JsonFile, Directory, GitRepository
+from pyext.win import wait_win
 
 
 class TimeRange(BaseModel):
@@ -2068,23 +2069,21 @@ class JianYingDesktop:
 
     # endregion
 
-    # region 窗口全屏
-    def full_screen(self):
+
+    # region 剪辑窗口全屏
+    @wait_win(locator.jianyingpro.剪辑窗口)
+    def clip_window_full_screen(self):
         """
-        全屏
+        剪映窗口全屏
         """
         taskbar_size = ui(locator.explorer.任务栏).get_size()
-        window, type = self.activate()
-        window_size = window.get_size()
+        clip_window = ui(locator.jianyingpro.剪辑窗口)
+        window_size = clip_window.get_size()
         window_size = (window_size.Width, window_size.Height)
         screen_size = pyautogui.size()
         screen_size = (screen_size.width, screen_size.height - taskbar_size.Height)
-        if window and window_size != screen_size:
-            if type == 1:
-                ui(locator.jianyingpro.主窗口最大化按钮).click()
-            elif type == 2:
-                ui(locator.jianyingpro.剪辑窗口最大化按钮).click()
-
+        if clip_window and window_size != screen_size:
+            ui(locator.jianyingpro.剪辑窗口最大化按钮).click()
     # endregion
 
     # region 打开剪映桌面版
@@ -2104,7 +2103,7 @@ class JianYingDesktop:
             process = subprocess.Popen(self.executable_path)
             self.pid = process.pid
 
-            @retry(stop=stop_after_delay(15), wait=wait_fixed(2))
+            @retry(stop=stop_after_delay(60), wait=wait_fixed(1))
             def wait_jianying_main_window():
                 ContextLogger.info("正在等待剪映主窗口打开...")
                 if not cc.is_existing(locator.jianyingpro.剪映主窗口):
@@ -2142,6 +2141,7 @@ class JianYingDesktop:
     # endregion
 
     # region 打开草稿
+    @wait_win(locator.jianyingpro.剪映主窗口)
     def open_draft(self, draft: JianYingDraft):
         """
         打开草稿
@@ -2155,9 +2155,6 @@ class JianYingDesktop:
         Returns:
             bool: 如果成功打开草稿, 则返回True
         """
-        if not cc.is_existing(locator.jianyingpro.剪映主窗口):
-            raise Exception("剪映主窗口未打开")
-
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
         def wait_draft_search_result():
             if not cc.is_existing(locator.jianyingpro.草稿列表中的第一个元素):
@@ -2214,25 +2211,6 @@ class JianYingDesktop:
         pyautogui.keyUp("ctrl")
         # time.sleep(3)
         # ui(locator.jianyingpro.文本轨道1)
-
-    # endregion
-
-    # region 激活窗口
-    def activate(self):
-        """
-        激活剪映窗口
-
-        Returns:
-            tuple(UIElement,int): 如果成功激活窗口, 则返回UIElement对象和窗口类型, 否则返回None. `1`表示剪映主窗口, `2`表示剪辑窗口
-        """
-        if cc.is_existing(locator.jianyingpro.剪辑窗口, timeout=5):
-            ui_element = ui(locator.jianyingpro.剪辑窗口)
-            ui_element.set_focus()
-            return ui_element, 2
-        elif cc.is_existing(locator.jianyingpro.剪映主窗口, timeout=5):
-            ui_element = ui(locator.jianyingpro.剪映主窗口)
-            ui_element.set_focus()
-            return ui_element, 1
 
     # endregion
 
@@ -2293,6 +2271,7 @@ class JianYingDesktop:
     # endregion
 
     # region 添加数字人
+    @wait_win(locator.jianyingpro.剪辑窗口)
     def add_digital_human(self, text_segment_index_range: IntRange, digital_human_index: int, sound_index: int):
         """
         添加数字人
