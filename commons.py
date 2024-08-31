@@ -4,6 +4,7 @@ import re
 import socket
 import subprocess
 import sys
+import textwrap
 import time
 import uuid
 from contextvars import ContextVar
@@ -17,7 +18,7 @@ from typing import Tuple
 import coloredlogs
 import psutil
 import pysubs2
-from PIL import ImageFont
+from PIL import ImageFont, Image, ImageDraw
 from loguru import logger
 
 
@@ -216,6 +217,17 @@ class Text(object):
     def __init__(self, value: str):
         self.value = value
 
+    def __str__(self):
+        return self.value
+
+    @property
+    def is_multi_line(self):
+        """
+        是否是多行文本
+        """
+        return self.value.count('\n') > 0
+
+    # region 删除所有空格和换行符
     def remove_spaces_and_newlines(self):
         """
         删除所有空格和换行符
@@ -229,6 +241,9 @@ class Text(object):
         text = text.replace("\n", "").replace("\r", "")
         return Text(text)
 
+    # endregion
+
+    # region 对文本进行断行
     def break_lines(self, pattern: str):
         """
         对文本进行断行
@@ -241,20 +256,79 @@ class Text(object):
         """
         return [Text(line) for line in re.split(pattern, self.value) if line]
 
-    def calculate_text_width(self, font_path: str, font_size: int):
+    # endregion
+
+    # region 计算在图像上渲染此文本所需的宽度和高度
+    def calc_size(self, font_path: str, font_size: int, line_spacing: int = 0):
         """
-        计算文本的宽度
+        计算在图像上渲染此文本所需的宽度和高度
 
         Args:
             font_path: 字体文件路径
             font_size: 字体大小
+            line_spacing: 行间距
 
         Returns:
             tuple[int, int]: 宽度, 高度
         """
         font = ImageFont.truetype(font_path, font_size)
-        width, height = font.getbbox(self.value)[2:]
-        return width, height
+        # 将文本分割成多行
+        lines = self.value.split('\n')
+
+        # 计算所有行中最宽的一行
+        max_width = max(font.getbbox(line)[2] for line in lines)
+
+        # 计算总高度
+        total_height = sum(font.getbbox(line)[3] for line in lines)
+
+        # 如果有多行，在行间添加一些间距
+        if len(lines) > 1:
+            total_height += line_spacing * (len(lines) - 1)
+
+        return max_width, total_height
+
+    # endregion
+
+    def create_image(self, font_path: str, font_size: int, font_color="white", margin: int = 0, radius: int = 0,
+                     background_color="black",
+                     line_spacing: int =0,
+                     max_chars_per_line: int = 99999,
+                     align: str = "center",
+                     ):
+        """
+        创建图像
+
+        Args:
+            font_path: 字体文件路径
+            font_size: 字体大小
+            font_color: 字体颜色,可以是以下格式 颜色名称|rgb(r,g,b)|rgba(r,g,b,a)|hex(rrggbbaa)
+            margin: 边距
+            radius: 圆角半径
+            background_color: 背景颜色,可以是以下格式 颜色名称|rgb(r,g,b)|rgba(r,g,b,a)|hex(rrggbbaa)
+            line_spacing: 行间距
+            max_chars_per_line: 每行最大字符数,默认不限制
+            align: 对齐方式,可以是以下值 left|center|right
+        """
+        lines = textwrap.wrap(self.value, width=max_chars_per_line)
+        font = ImageFont.truetype(font_path, font_size)
+        # 计算所有行中最宽的一行
+        max_width = int(max(font.getbbox(line)[2] for line in lines))
+        # 计算总高度
+        total_height = sum(font.getbbox(line)[3] for line in lines)
+        # 如果有多行，在行间添加一些间距
+        if len(lines) > 1:
+            total_height += line_spacing * (len(lines) - 1)
+        max_width += margin * 2
+        total_height += margin * 2
+        canvas = Image.new('RGBA', (max_width, total_height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(canvas)
+        draw.rounded_rectangle([(0, 0), (max_width - 1, total_height - 1)], radius=radius, fill=background_color)
+        for i, line in enumerate(lines):
+            x = margin
+            if align == "center":
+                x = (max_width - font.getbbox(line)[2]) // 2
+            draw.text((x, margin + i * (font_size + (line_spacing if line_spacing else  0))), line, font=font, fill=font_color)
+        return canvas
 
     def convert_to_pysubs2Color(self):
         """
@@ -265,6 +339,8 @@ class Text(object):
         """
         data = tuple(map(lambda v: int(float(v)), self.value.replace("rgba(", "").replace(")", "").split(",")))
         return pysubs2.Color(data[0], data[1], data[2], data[3])
+
+
 # endregion
 
 # region 对象工具
