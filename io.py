@@ -4,9 +4,10 @@ import os.path
 import shutil
 import socketserver
 import textwrap
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path as PathlibPath
-from typing import TypeVar, Type, Optional
+from typing import TypeVar, Type, Optional, Union, List
 
 import docker
 import pysubs2
@@ -18,7 +19,7 @@ from langdetect import detect, LangDetectException
 from pydantic import BaseModel
 from pysubs2 import SSAEvent
 
-from pyext.commons import CommandLine, ContextLogger
+from pyext.commons import CommandLine, ContextLogger, Size
 from pyext.exceptions import parse_exceptions
 
 TF = TypeVar('TF', bound='File')
@@ -28,6 +29,21 @@ TSBT = TypeVar('TSBT', bound='SubtitleFile')
 
 
 # region ffmpeg
+@dataclass
+class ImageFragment(object):
+    """图像片段"""
+    image_file: 'ImageFile'
+    """图像文件"""
+    begin: float
+    """开始时间"""
+    end: float
+    """结束时间"""
+    x: float
+    """x坐标"""
+    y: float
+    """y坐标"""
+
+
 class Ffmpeg(object):
 
     def __init__(self):
@@ -58,6 +74,38 @@ class Ffmpeg(object):
             subtitle_file: 字幕文件
             new_name: 新文件名
             font_directory: 字体目录
+
+        Returns:
+            新的视频文件
+        """
+        raise NotImplementedError()
+
+    def add_image_fragments_to_video(self, video_file: 'VideoFile', image_fragments: List[ImageFragment],  new_name: str) -> 'VideoFile':
+        """
+        把多个图像片段添加到视频中
+        Args:
+            video_file: 视频文件
+            image_fragments: 图像片段
+            new_name: 新文件名
+
+        Returns:
+            新的视频文件
+        """
+        raise NotImplementedError()
+
+    def add_img_subtitle_to_video(self, video_file: 'VideoFile', img_file: 'ImageFile', x: int, y: int, begin_time: float,
+                                  end_time: float, new_name: str) -> 'VideoFile':
+        """
+        把图片当成字幕添加到视频中
+
+        Args:
+            video_file: 视频文件
+            img_file: 图片文件
+            x: 图片的x坐标
+            y: 图片的y坐标
+            begin_time: 开始时间
+            end_time: 结束时间
+            new_name: 新文件名
 
         Returns:
             新的视频文件
@@ -183,6 +231,74 @@ class DockerFfmpeg(Ffmpeg):
         ).decode('utf-8').strip()
         ContextLogger.info(f"将srt字幕文件转换为ass字幕文件的日志: {logs}")
         return AssSubtitleFile(str(srt_file.path.parent / f"{srt_file.path.stem}.ass"))
+
+    def add_image_fragments_to_video(self, video_file: 'VideoFile', image_fragments: List[ImageFragment], new_name: str) -> 'VideoFile':
+        ContextLogger.set_name("ffmpeg")
+        sub_cmd1 = " ".join([f"-i /tmp_app/images/{fragment.image_file.name}" for fragment in image_fragments])
+
+        # 构建 filter_complex 列表
+        filter_complex = []
+
+        for i, fragment in enumerate(image_fragments):
+            if i == 0:
+                input_label = '0:v'
+            else:
+                input_label = f'v{i}'
+
+            output_label = f'v{i + 1}'
+
+            filter_complex.append(
+                f"[{input_label}][{i + 1}:v]overlay={fragment.x}:{fragment.y}:enable='between(t,{fragment.begin},{fragment.end})'[{output_label}]")
+
+        # 将 filter_complex 列表合并为一个字符串
+        filter_complex_str = ';'.join(filter_complex)
+
+        command = f"-y -i /tmp_app/{video_file.path.name} {sub_cmd1} -filter_complex \"{filter_complex_str}\" -map \"[v{len(image_fragments)}]\" -map 0:a  -c:a copy /tmp_app/{new_name}"
+
+        full_command = f"docker run --rm -it -v {str(video_file.path.parent.absolute())}:/tmp_app -v {str(image_fragments[0].image_file.path.parent.absolute())}:/tmp_app/images {self.ffmpeg_image} {command}"
+        ContextLogger.info(f"使用以下命令行将多张图片添加到视频: {full_command}")
+
+        logs = self.docker_client.containers.run(
+            self.ffmpeg_image,
+            command,
+            volumes={str(video_file.path.parent.absolute()): {'bind': '/tmp_app', 'mode': 'rw'},
+                     str(image_fragments[0].image_file.path.parent.absolute()): {"bind": "/tmp_app/images",
+                                                                                 "mode": "rw"},
+                     },
+            remove=True,
+            tty=True,
+            stdin_open=True
+        ).decode('utf-8').strip()
+
+        ContextLogger.info(f"将多张图片添加到视频的日志: {logs}")
+        return VideoFile(str(video_file.path.parent / new_name))
+
+    def add_img_subtitle_to_video(self, video_file: 'VideoFile', img_file: 'ImageFile',
+                                  x: int, y: int,
+                                  begin_time: float,
+                                  end_time: float, new_name: str) -> 'VideoFile':
+        ContextLogger.set_name("ffmpeg")
+        command = f"-y -i /tmp_app/{video_file.path.name} -i /tmp_app/images/{img_file.path.name} -filter_complex \"[0:v][1:v]overlay={x}:{y}:enable='between(t,{begin_time},{end_time})'\" -c:a copy /tmp_app/{new_name}"
+        full_command = (
+            f"docker run --rm -it -v {str(video_file.path.parent.absolute())}:/tmp_app {self.ffmpeg_image} {command}"
+        )
+        ContextLogger.info(f"使用以下命令行为视频添加字幕: {full_command}")
+        logs = (
+            self.docker_client.containers.run(
+                self.ffmpeg_image,
+                command,
+                volumes={str(video_file.path.parent.absolute()): {"bind": "/tmp_app", "mode": "rw"},
+                         str(img_file.path.parent.absolute()): {"bind": "/tmp_app/images", "mode": "rw"},
+                         },
+                remove=True,
+                tty=True,
+                stdin_open=True,
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        ContextLogger.info(f"为视频添加字幕的日志: {logs}")
+        return VideoFile(str(video_file.path.parent / new_name))
 
     def add_subtitle_to_video(self, video_file: 'VideoFile', subtitle_file: 'SubtitleFile',
                               new_name: str, font_directory: str) -> 'VideoFile':
@@ -360,7 +476,8 @@ class Aeneas(object):
             return None
 
     # region 强制对齐音频和文本
-    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None) -> 'SrtSubtitleFile':
+    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None,
+                    format: str = "srt") -> Union['SrtSubtitleFile', 'JsonFile']:
         """
         将音频文件与文本强制对齐
 
@@ -368,6 +485,7 @@ class Aeneas(object):
             audio_file: 音频文件
             text: 文本
             language_code: 语言代码,如果为None,则自动检测
+            format: 格式,默认为srt
 
         Returns:
             srt字幕文件
@@ -385,21 +503,34 @@ class LocalAeneas(Aeneas):
         """
         super().__init__()
 
-    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None) -> 'SrtSubtitleFile':
+    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None,
+                    format: str = "srt") -> Union['SrtSubtitleFile', 'JsonFile']:
         ContextLogger.set_name("aeneas")
         language_code = language_code or LanguageCode.from_langdetect(self.detect_language(text))
-        content_text_file = File(str(audio_file.path.parent / f"{audio_file.path.stem}-content.txt"))
+        content_text_file_name = f"{audio_file.path.stem}-content.txt"
+        content_text_file = File(str(audio_file.path.parent / content_text_file_name))
         content_text_file.write_content(text)
+        audio_file_name = audio_file.path.name
+        audio_file_dir = str(audio_file.path.parent)
+        if format == "srt":
+            file_name = f"{audio_file.path.stem}.srt"
+        elif format == "json":
+            file_name = f"{audio_file.path.stem}.json"
+        else:
+            raise ValueError(f"不支持的格式: {format}")
         command = (
             "python -m aeneas.tools.execute_task "
-            f"{str(audio_file.path.absolute())} {str(content_text_file.path.absolute())} "
-            f"'task_language={language_code.value}|os_task_file_format=srt|is_text_type=plain' "
-            f"{str(audio_file.path.parent / audio_file.path.stem)}.srt;\""
+            f"{audio_file_name} {content_text_file_name} "
+            f"'task_language={language_code.value}|os_task_file_format={format}|is_text_type=plain' "
+            f"{file_name}"
         )
         ContextLogger.info(f"使用以下命令行先将音频文件与文本强制对齐: {command}")
-        logs = CommandLine.run_and_get(command).output
+        logs = CommandLine.run_and_get(command, audio_file_dir).output
         ContextLogger.info(f"将音频文件与文本强制对齐的日志: {logs}")
-        return SrtSubtitleFile(str(audio_file.path.parent / f"{audio_file.path.stem}.srt"))
+        if format == "srt":
+            return SrtSubtitleFile(str(audio_file.path.parent / file_name))
+        elif format == "json":
+            return JsonFile(str(audio_file.path.parent / file_name))
 
 
 class DockerAeneas(Aeneas):
@@ -413,18 +544,25 @@ class DockerAeneas(Aeneas):
         self.aeneas_image = aeneas_image
         """使用的docker镜像"""
 
-    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None) -> 'SrtSubtitleFile':
+    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None, format: str = "srt") -> Union[
+        'SrtSubtitleFile', 'JsonFile']:
         ContextLogger.set_name("aeneas")
         language_code = language_code or LanguageCode.from_langdetect(self.detect_language(text))
         content_text_file = File(str(audio_file.path.parent / f"{audio_file.path.stem}-content.txt"))
         content_text_file.write_content(text)
+        if format == "srt":
+            file_name = f"{audio_file.path.stem}.srt"
+        elif format == "json":
+            file_name = f"{audio_file.path.stem}.json"
+        else:
+            raise ValueError(f"不支持的格式: {format}")
         command = (
             f"bash -c \"source ~/miniconda3/etc/profile.d/conda.sh; "
             f"conda activate aeneas; "
             f"python -m aeneas.tools.execute_task "
             f"/tmp_app/{audio_file.path.name} /tmp_app/{audio_file.path.stem}-content.txt "
-            f"'task_language={language_code.value}|os_task_file_format=srt|is_text_type=plain' "
-            f"/tmp_app/{audio_file.path.stem}.srt;\""
+            f"'task_language={language_code.value}|os_task_file_format={format}|is_text_type=plain' "
+            f"/tmp_app/{file_name};\""
         )
         local_mapping_dir = str(audio_file.path.parent.absolute())
         full_command = (
@@ -440,7 +578,10 @@ class DockerAeneas(Aeneas):
             stdin_open=True
         ).decode('utf-8').strip()
         ContextLogger.info(f"将音频文件与文本强制对齐的日志: {logs}")
-        return SrtSubtitleFile(str(audio_file.path.parent / f"{audio_file.path.stem}.srt"))
+        if format == "srt":
+            return SrtSubtitleFile(str(audio_file.path.parent / file_name))
+        elif format == "json":
+            return JsonFile(str(audio_file.path.parent / file_name))
 
 
 # endregion
@@ -520,6 +661,14 @@ class File(object):
 
         shutil.copy2(str(self.path), str(target_path))
         return File(str(target_path))
+
+    @property
+    def name(self):
+        return self.path.name
+
+    @property
+    def short_name(self):
+        return self.path.stem
 
 
 # region 字幕文件
@@ -911,12 +1060,13 @@ class JsonFile(File):
         with open(self.path, 'r', encoding="utf-8") as file:
             return Dict(json.load(file))
 
-    def read_as_pydanitc_model(self, model: Type[TPM]) -> TPM:
+    def read_as_pydanitc_model(self, model: Type[TPM], additional_data: dict[str, any] = None) -> TPM:
         """
         读取文件内容并将其转换为 Pydantic 模型
 
         Args:
             model: Pydantic 模型
+            additional_data: 附加数据
         Returns:
             Pydantic 模型实例
 
@@ -925,7 +1075,10 @@ class JsonFile(File):
         """
         with open(self.path, 'r', encoding="utf-8") as file:
             try:
-                return model(**self.read_as_addict())
+                dict = self.read_as_addict()
+                if additional_data:
+                    dict.update(additional_data)
+                return model(**dict)
             except Exception as e:
                 raise parse_exceptions(e)
 
@@ -1168,6 +1321,27 @@ class GitRepository(Directory):
             repo_path = PathlibPath(CommandLine.run("pwd").output.strip()) / name
         return GitRepository(str(repo_path))
 
+
+# endregion
+
+
+# region 表示一个图片文件
+class ImageFile(File):
+    def __init__(self, path: str):
+        """
+        创建一个图片文件
+        """
+        super().__init__(path)
+
+    @property
+    def size(self):
+        """
+        获取图片大小
+        """
+        from PIL import Image
+        image = Image.open(self.path)
+        width, height = image.size
+        return Size(width, height)
 
 # endregion
 
