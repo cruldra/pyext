@@ -80,7 +80,8 @@ class Ffmpeg(object):
         """
         raise NotImplementedError()
 
-    def add_image_fragments_to_video(self, video_file: 'VideoFile', image_fragments: List[ImageFragment],  new_name: str) -> 'VideoFile':
+    def add_image_fragments_to_video(self, video_file: 'VideoFile', image_fragments: List[ImageFragment],
+                                     new_name: str) -> 'VideoFile':
         """
         把多个图像片段添加到视频中
         Args:
@@ -93,7 +94,8 @@ class Ffmpeg(object):
         """
         raise NotImplementedError()
 
-    def add_img_subtitle_to_video(self, video_file: 'VideoFile', img_file: 'ImageFile', x: int, y: int, begin_time: float,
+    def add_img_subtitle_to_video(self, video_file: 'VideoFile', img_file: 'ImageFile', x: int, y: int,
+                                  begin_time: float,
                                   end_time: float, new_name: str) -> 'VideoFile':
         """
         把图片当成字幕添加到视频中
@@ -148,7 +150,7 @@ class LocalFfmpeg(Ffmpeg):
             f"ffmpeg -y -i  {str(video_file.path.absolute())} -q:a 0 -map a {audio_file_path}"
         )
         output = CommandLine.run_and_get(command)
-        ContextLogger.info(f"将视频转换为音频:{output.output}")
+        ContextLogger.info(f"将视频转换为音频:{output.stdout}")
         if audio_type == Mp3File:
             return Mp3File(audio_file_path)
         else:
@@ -158,7 +160,7 @@ class LocalFfmpeg(Ffmpeg):
         ContextLogger.set_name("ffmpeg")
         command = f"ffmpeg -y -i {str(srt_file.path.absolute())} {str(srt_file.path.stem)}.ass"
         output = CommandLine.run_and_get(command)
-        ContextLogger.info(f"将srt字幕文件转换为ass字幕文件:{output.output}")
+        ContextLogger.info(f"将srt字幕文件转换为ass字幕文件:{output.stdout}")
         return AssSubtitleFile(str(srt_file.path.parent / f"{srt_file.path.stem}.ass"))
 
     def add_subtitle_to_video(self, video_file: 'VideoFile', subtitle_file: 'SubtitleFile', new_name: str,
@@ -168,7 +170,37 @@ class LocalFfmpeg(Ffmpeg):
             f"ffmpeg -y -i {str(video_file.path.absolute())} -vf 'ass={str(subtitle_file.path.absolute())}' -c:a copy {str(video_file.path.parent / new_name)}"
         )
         output = CommandLine.run_and_get(command)
-        ContextLogger.info(f"为视频添加字幕:{output.output}")
+        ContextLogger.info(f"为视频添加字幕:{output.stdout}")
+        return VideoFile(str(video_file.path.parent / new_name))
+
+    def add_image_fragments_to_video(self, video_file: 'VideoFile', image_fragments: List[ImageFragment],
+                                     new_name: str) -> 'VideoFile':
+        ContextLogger.set_name("ffmpeg")
+        sub_cmd1 = " ".join([f"-i {fragment.image_file.path.absolute()}" for fragment in image_fragments])
+
+        # 构建 filter_complex 列表
+        filter_complex = []
+
+        for i, fragment in enumerate(image_fragments):
+            if i == 0:
+                input_label = '0:v'
+            else:
+                input_label = f'v{i}'
+
+            output_label = f'v{i + 1}'
+
+            filter_complex.append(
+                f"[{input_label}][{i + 1}:v]overlay={fragment.x}:{fragment.y}:enable='between(t,{fragment.begin},{fragment.end})'[{output_label}]")
+
+        # 将 filter_complex 列表合并为一个字符串
+        filter_complex_str = ';'.join(filter_complex)
+
+        command = f"ffmpeg -y -i {video_file.path.absolute()} {sub_cmd1} -filter_complex \"{filter_complex_str}\" -map \"[v{len(image_fragments)}]\" -map 0:a  -c:a copy {video_file.path.parent.absolute()/ new_name}"
+
+        # 执行命令
+        output = CommandLine.run_and_get(command)
+        ContextLogger.info(f"为视频添加图片片段:{output.output}")
+
         return VideoFile(str(video_file.path.parent / new_name))
 
 
@@ -232,7 +264,8 @@ class DockerFfmpeg(Ffmpeg):
         ContextLogger.info(f"将srt字幕文件转换为ass字幕文件的日志: {logs}")
         return AssSubtitleFile(str(srt_file.path.parent / f"{srt_file.path.stem}.ass"))
 
-    def add_image_fragments_to_video(self, video_file: 'VideoFile', image_fragments: List[ImageFragment], new_name: str) -> 'VideoFile':
+    def add_image_fragments_to_video(self, video_file: 'VideoFile', image_fragments: List[ImageFragment],
+                                     new_name: str) -> 'VideoFile':
         ContextLogger.set_name("ffmpeg")
         sub_cmd1 = " ".join([f"-i /tmp_app/images/{fragment.image_file.name}" for fragment in image_fragments])
 
@@ -518,15 +551,19 @@ class LocalAeneas(Aeneas):
             file_name = f"{audio_file.path.stem}.json"
         else:
             raise ValueError(f"不支持的格式: {format}")
-        command = (
-            "python -m aeneas.tools.execute_task "
-            f"{audio_file_name} {content_text_file_name} "
-            f"'task_language={language_code.value}|os_task_file_format={format}|is_text_type=plain' "
-            f"{file_name}"
-        )
+        command = [
+            "py",
+            "-3.9",
+            "-m",
+            "aeneas.tools.execute_task",
+            audio_file_name,
+            content_text_file_name,
+            f"task_language={language_code.value}|os_task_file_format={format}|is_text_type=plain",
+            file_name
+        ]
         ContextLogger.info(f"使用以下命令行先将音频文件与文本强制对齐: {command}")
-        logs = CommandLine.run_and_get(command, audio_file_dir).output
-        ContextLogger.info(f"将音频文件与文本强制对齐的日志: {logs}")
+        output = CommandLine.run_and_get(command, audio_file_dir).output
+        ContextLogger.info(f"将音频文件与文本强制对齐的日志: {output}")
         if format == "srt":
             return SrtSubtitleFile(str(audio_file.path.parent / file_name))
         elif format == "json":
@@ -893,7 +930,7 @@ class VideoFile(File):
         """
         result = CommandLine.run_and_get(
             f"ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 \"{self.path.absolute()}\"")
-        width, height = result.output.strip().split("x")
+        width, height = result.stdout.strip().split("x")
         return int(width), int(height)
 
     def resize(self, new_width: int, new_height: int) -> 'VideoFile':
@@ -1342,6 +1379,7 @@ class ImageFile(File):
         image = Image.open(self.path)
         width, height = image.size
         return Size(width, height)
+
 
 # endregion
 

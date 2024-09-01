@@ -407,12 +407,17 @@ class CommandLineOutput(object):
     """
     命令行输出
     """
-    output: str
+    stdout: str
     """标准输出"""
-    error: str
+    stderr: str
     """错误输出"""
     status: int
     """状态码"""
+
+
+    @property
+    def output(self):
+        return "\n".join([self.stdout, self.stderr])
 
 
 class CommandLine(object):
@@ -425,7 +430,7 @@ class CommandLine(object):
                                 encoding=encoding)
 
     @classmethod
-    def run_and_get(cls, command: str, cwd: str = None, encoding=None) -> CommandLineOutput:
+    def run_and_get(cls, command: str|list[str], cwd: str = None, encoding=None) -> CommandLineOutput:
         """
         阻塞方式运行命令,返回命令行输出
 
