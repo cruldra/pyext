@@ -1541,6 +1541,16 @@ class ZipFile(CompressedFile):
         super().__init__(path)
 
     def read_file_content(self, file_name, password=None):
+        """
+        读取zip压缩包中指定文件的内容
+
+        Args:
+            file_name: 文件名
+            password: 密码
+
+        Returns:
+            str -文件内容
+        """
         ContextLogger.set_name("ZipFile")
         try:
             with zipfile.ZipFile(self.path, "r") as zf:
