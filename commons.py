@@ -684,8 +684,11 @@ def log_name(name):
 
 
 logger.remove()
-logger.add(sink=sys.stdout,
-           format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{extra[name]}</cyan> - <level>{message}</level>")
+format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{extra[name]}</cyan> - <level>{message}</level>"
+if sys.stdout is not None:
+    logger.add(sink=sys.stdout, format=format)
+else:
+    logger.add(sink="app.log", format=format)
 logger_name = ContextVar("logger_name", default="root")
 
 

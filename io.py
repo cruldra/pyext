@@ -1,6 +1,8 @@
 import http.server
 import json
 import os.path
+import platform
+import re
 import shutil
 import socketserver
 import textwrap
@@ -63,6 +65,31 @@ class Ffmpeg(object):
         except:
             ContextLogger.info("使用本地ffmpeg")
             return LocalFfmpeg()
+
+    def change_volume(self, video_file: 'VideoFile', volume: int) -> 'VideoFile':
+        """
+        调整视频音量
+
+        Args:
+            video_file: 视频文件
+            volume: 音量,1~100之间的整数
+
+        Returns:
+            VideoFile: 新的视频文件
+        """
+        raise NotImplementedError()
+
+    def change_speed(self, video_file: 'VideoFile', speed: float) -> 'VideoFile':
+        """
+        调整视频速度
+        Args:
+            video_file: 视频文件
+            speed: 速度,大于0的浮点数
+
+        Returns:
+            VideoFile: 新的视频文件
+        """
+        raise NotImplementedError()
 
     def add_subtitle_to_video(self, video_file: 'VideoFile', subtitle_file: 'SubtitleFile',
                               new_name: str, font_directory: str) -> 'VideoFile':
@@ -133,6 +160,18 @@ class Ffmpeg(object):
         """
         raise NotImplementedError()
 
+    def get_video_volume(self, video_file: 'VideoFile') -> tuple[float, float] :
+        """
+        获取视频的音量
+
+        Args:
+            video_file: 视频文件
+
+        Returns:
+            音量
+        """
+        raise NotImplementedError()
+
 
 # region 本地安装的ffmpeg
 class LocalFfmpeg(Ffmpeg):
@@ -141,6 +180,34 @@ class LocalFfmpeg(Ffmpeg):
         使用本地ffmpeg
         """
         super().__init__()
+
+    def change_speed(self, video_file: 'VideoFile', speed_factor: float) -> 'VideoFile':
+        if speed_factor <= 0:
+            raise ValueError("速度因子必须大于0")
+        ContextLogger.set_name("ffmpeg")
+        #视频速度的改变是通过调整 PTS（Presentation Time Stamp）来实现的 当我们想要加速视频时（speed_factor > 1），我们需要减少 PTS，所以用 1 除以 speed_factor
+        video_tempo = 1 / speed_factor
+        #音频速度直接使用 speed_factor，因为 atempo 滤镜期望的值是大于 1 表示加速，小于 1 表示减速
+        audio_tempo = speed_factor
+        output_video_file = video_file.path.parent / f"{video_file.path.stem}_speed_{speed_factor}.{video_file.suffix}"
+        # 对于音频速度的极端变化，我们需要串联多个 atempo 滤镜
+        audio_filter = f"atempo={min(2.0, audio_tempo)}"
+        while audio_tempo > 2.0:
+            audio_filter += f",atempo={min(2.0, audio_tempo / 2.0)}"
+            audio_tempo /= 2.0
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i", video_file.name,
+            "-filter_complex",
+            f"[0:v]setpts={video_tempo}*PTS[v];[0:a]{audio_filter}[a]",
+            "-map", "[v]",
+            "-map", "[a]",
+            output_video_file.name
+        ]
+        output = CommandLine.run_and_get(command,cwd=str(video_file.path.parent.absolute()))
+        ContextLogger.info(f"改变视频速度:{output.output}")
+        return VideoFile(str(output_video_file))
 
     def video_to_audio(self, video_file: 'VideoFile', audio_type: Type[TAF]) -> TAF:
         video_dir = str(video_file.path.parent)
@@ -162,6 +229,51 @@ class LocalFfmpeg(Ffmpeg):
         output = CommandLine.run_and_get(command)
         ContextLogger.info(f"将srt字幕文件转换为ass字幕文件:{output.stdout}")
         return AssSubtitleFile(str(srt_file.path.parent / f"{srt_file.path.stem}.ass"))
+
+    def get_video_volume(self, video_file: 'VideoFile') ->tuple[float, float]:
+        """
+        获取视频的音量
+
+        Args:
+            video_file: 视频文件
+
+        Returns:
+            tuple[float, float] - 平均音量,最大音量
+        """
+        ContextLogger.set_name("ffmpeg")
+        command = [
+            "ffmpeg",
+            "-i", video_file.name,
+            "-filter:a", "volumedetect",
+            "-f", "null",
+            "NUL" if platform.system() == "Windows" else "/dev/null"
+        ]
+        output = CommandLine.run_and_get(command, cwd=str(video_file.path.parent.absolute())).output
+        ContextLogger.info(f"获取视频音量:{output}")
+        mean_volume_match = re.search(r"mean_volume: ([-\d.]+) dB", output)
+        max_volume_match = re.search(r"max_volume: ([-\d.]+) dB", output)
+        mean_volume = float(mean_volume_match.group(1)) if mean_volume_match else None
+        max_volume = float(max_volume_match.group(1)) if max_volume_match else None
+        return mean_volume, max_volume
+
+    def change_volume(self, video_file: 'VideoFile', volume: int) -> 'VideoFile':
+        if not 1 <= volume <= 100:
+            raise ValueError("音量级别必须在 1 到 100 之间")
+        ContextLogger.set_name("ffmpeg")
+        # 将 1-100 映射到 0.01-2.0
+        volume_factor = (volume - 1) / 49.5 + 0.01
+        output_video_file = video_file.path.parent / f"{video_file.path.stem}_volume_{volume}.mp4"
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i", video_file.name,
+            "-filter:a", f"volume={volume_factor}",
+            "-c:v", "copy",
+            output_video_file.name
+        ]
+        output = CommandLine.run_and_get(command, cwd=str(video_file.path.parent.absolute()))
+        ContextLogger.info(f"调整视频音量:{output.output}")
+        return VideoFile(str(output_video_file))
 
     def add_subtitle_to_video(self, video_file: 'VideoFile', subtitle_file: 'SubtitleFile', new_name: str,
                               font_directory: str) -> 'VideoFile':
@@ -195,7 +307,7 @@ class LocalFfmpeg(Ffmpeg):
         # 将 filter_complex 列表合并为一个字符串
         filter_complex_str = ';'.join(filter_complex)
 
-        command = f"ffmpeg -y -i {video_file.path.absolute()} {sub_cmd1} -filter_complex \"{filter_complex_str}\" -map \"[v{len(image_fragments)}]\" -map 0:a  -c:a copy {video_file.path.parent.absolute()/ new_name}"
+        command = f"ffmpeg -y -i {video_file.path.absolute()} {sub_cmd1} -filter_complex \"{filter_complex_str}\" -map \"[v{len(image_fragments)}]\" -map 0:a  -c:a copy {video_file.path.parent.absolute() / new_name}"
 
         # 执行命令
         output = CommandLine.run_and_get(command)
@@ -679,6 +791,18 @@ class File(object):
         shutil.move(str(self.path), str(target_path))
         return File(str(target_path))
 
+    def rename(self, new_name: str) -> 'File':
+        """
+        重命名文件
+
+        Args:
+            new_name: 新名称
+
+        Returns:
+            File - 新的文件对象
+        """
+        return File(str(self.path.rename(new_name)))
+
     # 这里有个前向引用，所以用字符串, 参考https://poe.com/s/kxbWkhgiPORnv2D02LUJ
     def copy_to(self, target: 'str | Directory') -> 'File':
         """
@@ -702,6 +826,11 @@ class File(object):
     @property
     def name(self):
         return self.path.name
+
+
+    @property
+    def suffix(self):
+        return self.path.suffix
 
     @property
     def short_name(self):
@@ -919,6 +1048,14 @@ class VideoFile(File):
         audio_file_path = self.path.parent / audio_file_name
         CommandLine.run(f"ffmpeg -i {str(self.path.absolute())} -q:a 0 -map a {str(audio_file_path.absolute())}")
         return AudioFile(str(audio_file_path))
+
+    @property
+    def volume(self):
+        """
+        获取视频音量
+        """
+        ffmpeg = Ffmpeg.from_env()
+        return ffmpeg.get_video_volume(self)
 
     @property
     def resolution(self):
