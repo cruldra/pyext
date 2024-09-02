@@ -1,4 +1,6 @@
+import tkinter as tk
 import winreg
+from tkinter import messagebox
 
 import win32gui
 import wrapt
@@ -7,6 +9,27 @@ from tenacity import retry, stop_after_delay, wait_fixed
 
 from pyext.commons import ContextLogger
 
+
+def show_message_box(msg,callback=None,type="info"):
+    root = tk.Tk()
+    root.withdraw()  # 隐藏主窗口
+
+    if type == "info":
+        res =messagebox.showinfo("提示", msg)
+    elif type == "warning":
+        res =messagebox.showwarning("警告", msg)
+    elif type == "error":
+        res =messagebox.showerror("错误", msg)
+    elif type == "question":
+        res = messagebox.askquestion("问题", msg)
+    else:
+        res =messagebox.showinfo("提示", msg)
+    # 或者使用其他类型的消息框:
+    # messagebox.showwarning("警告", "这是一个警告框！")
+    # messagebox.showerror("错误", "这是一个错误框！")
+    if callback:
+        callback(res)
+    root.destroy()
 
 def get_windows_theme():
     """

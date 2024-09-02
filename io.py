@@ -6,6 +6,7 @@ import re
 import shutil
 import socketserver
 import textwrap
+import zipfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path as PathlibPath
@@ -160,7 +161,7 @@ class Ffmpeg(object):
         """
         raise NotImplementedError()
 
-    def get_video_volume(self, video_file: 'VideoFile') -> tuple[float, float] :
+    def get_video_volume(self, video_file: 'VideoFile') -> tuple[float, float]:
         """
         获取视频的音量
 
@@ -185,9 +186,9 @@ class LocalFfmpeg(Ffmpeg):
         if speed_factor <= 0:
             raise ValueError("速度因子必须大于0")
         ContextLogger.set_name("ffmpeg")
-        #视频速度的改变是通过调整 PTS（Presentation Time Stamp）来实现的 当我们想要加速视频时（speed_factor > 1），我们需要减少 PTS，所以用 1 除以 speed_factor
+        # 视频速度的改变是通过调整 PTS（Presentation Time Stamp）来实现的 当我们想要加速视频时（speed_factor > 1），我们需要减少 PTS，所以用 1 除以 speed_factor
         video_tempo = 1 / speed_factor
-        #音频速度直接使用 speed_factor，因为 atempo 滤镜期望的值是大于 1 表示加速，小于 1 表示减速
+        # 音频速度直接使用 speed_factor，因为 atempo 滤镜期望的值是大于 1 表示加速，小于 1 表示减速
         audio_tempo = speed_factor
         output_video_file = video_file.path.parent / f"{video_file.path.stem}_speed_{speed_factor}.{video_file.suffix}"
         # 对于音频速度的极端变化，我们需要串联多个 atempo 滤镜
@@ -205,7 +206,7 @@ class LocalFfmpeg(Ffmpeg):
             "-map", "[a]",
             output_video_file.name
         ]
-        output = CommandLine.run_and_get(command,cwd=str(video_file.path.parent.absolute()))
+        output = CommandLine.run_and_get(command, cwd=str(video_file.path.parent.absolute()))
         ContextLogger.info(f"改变视频速度:{output.output}")
         return VideoFile(str(output_video_file))
 
@@ -230,7 +231,7 @@ class LocalFfmpeg(Ffmpeg):
         ContextLogger.info(f"将srt字幕文件转换为ass字幕文件:{output.stdout}")
         return AssSubtitleFile(str(srt_file.path.parent / f"{srt_file.path.stem}.ass"))
 
-    def get_video_volume(self, video_file: 'VideoFile') ->tuple[float, float]:
+    def get_video_volume(self, video_file: 'VideoFile') -> tuple[float, float]:
         """
         获取视频的音量
 
@@ -827,7 +828,6 @@ class File(object):
     def name(self):
         return self.path.name
 
-
     @property
     def suffix(self):
         return self.path.suffix
@@ -1114,8 +1114,11 @@ class YamlFile(File):
         """
         读取文件内容并将其转换为 Pydantic 模型
 
-        :param model: Pydantic 模型
-        :return: Pydantic 模型实例
+        Args:
+            model: Pydantic 模型类
+
+        Returns:
+            TPM: Pydantic 模型实例
         """
         with open(self.path, 'r', encoding="utf-8") as file:
             yaml_data = yaml.safe_load(file)
@@ -1516,6 +1519,53 @@ class ImageFile(File):
         image = Image.open(self.path)
         width, height = image.size
         return Size(width, height)
+
+
+# endregion
+
+# region 压缩文件
+class CompressedFile(File):
+    def __init__(self, path: str):
+        """
+        表示一个压缩文件
+        """
+        super().__init__(path)
+
+
+# region zip文件
+class ZipFile(CompressedFile):
+    def __init__(self, path: str):
+        """
+        表示一个zip文件
+        """
+        super().__init__(path)
+
+    def read_file_content(self, file_name, password=None):
+        ContextLogger.set_name("ZipFile")
+        try:
+            with zipfile.ZipFile(self.path, "r") as zf:
+                # 获取文件信息
+                file_info = zf.getinfo(file_name)
+
+                # 读取文件内容
+                with zf.open(file_info, pwd=password.encode() if password else None) as file:
+                    content = file.read().decode('utf-8')
+
+                return content
+        except zipfile.BadZipFile:
+            ContextLogger.error(f"Error: {self.path} is not a valid ZIP file.")
+        except KeyError:
+            ContextLogger.error(f"Error: {file_name} not found in the ZIP file.")
+        except RuntimeError as e:
+            if "Bad password" in str(e):
+                ContextLogger.error(f"Error: Incorrect password for {self.path}")
+            else:
+                ContextLogger.error(f"Error reading {file_name}: {e}")
+        except Exception as e:
+            ContextLogger.error(f"An unexpected error occurred: {e}")
+
+        return None
+# endregion
 
 
 # endregion
