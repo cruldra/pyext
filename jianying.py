@@ -2260,13 +2260,14 @@ class JianYingDesktop:
             pyautogui.click(center_point_x, center_point_y)
 
             # 点击开始朗读按钮后,等待"音频更新中"的提示框出现
-            @retry(stop=stop_after_attempt(5), wait=wait_fixed(0.2))
-            def wait_update_window():
-                if not cc.is_existing(locator.jianyingpro.数字人音频更新中窗口):
-                    raise Exception(f"窗口未出现")
-                return True
+            # 会导致不能使用默认音色,暂时先取消
+            # @retry(stop=stop_after_attempt(5), wait=wait_fixed(0.2))
+            # def wait_update_window():
+            #     if not cc.is_existing(locator.jianyingpro.数字人音频更新中窗口):
+            #         raise Exception(f"窗口未出现")
+            #     return True
 
-            return wait_update_window()
+            return True
 
     # endregion
 
