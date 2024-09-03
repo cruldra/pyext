@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 import winreg
 from tkinter import messagebox
@@ -6,9 +7,41 @@ import win32gui
 import wrapt
 from clicknium import clicknium as cc, ui
 from tenacity import retry, stop_after_delay, wait_fixed
+from win32comext.shell import shell, shellcon
 
 from pyext.commons import ContextLogger
 
+
+def open_file_dialog(title="请选择文件"):
+    """
+    打开文件选择框,选择单个文件
+
+    Args:
+        title: 窗口标题
+
+    Returns:
+        str: 选择的文件路径
+    """
+    desktop_pidl = shell.SHGetFolderLocation(0, shellcon.CSIDL_DESKTOP, 0, 0)
+    pidl, display_name, image_list = shell.SHBrowseForFolder(
+        win32gui.GetDesktopWindow(),
+        desktop_pidl,
+        title,
+        shellcon.BIF_BROWSEINCLUDEFILES,
+        None,
+        None
+    )
+
+    if pidl:
+        path = shell.SHGetPathFromIDList(pidl)
+        # 检查是否是MP3文件
+        if isinstance(path, bytes):
+            path = path.decode('utf-8')  # 将字节字符串转换为Unicode字符串
+        if os.path.isfile(path) :
+            return path.lower()
+        else:
+            return None
+    return None
 
 def show_message_box(msg,callback=None,type="info"):
     root = tk.Tk()
