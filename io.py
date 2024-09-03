@@ -67,6 +67,19 @@ class Ffmpeg(object):
             ContextLogger.info("使用本地ffmpeg")
             return LocalFfmpeg()
 
+    def add_background_music(self, video_file: 'VideoFile', audio_file: 'AudioFile',volume: int = None) -> 'VideoFile':
+        """
+        为视频添加背景音乐
+
+        Args:
+            video_file: 视频文件
+            audio_file: 音频文件
+            volume: 音量,1~100之间的整数
+
+        Returns:
+            VideoFile - 新的视频文件
+        """
+        raise NotImplementedError()
     def change_volume(self, video_file: 'VideoFile', volume: int) -> 'VideoFile':
         """
         调整视频音量
@@ -181,6 +194,31 @@ class LocalFfmpeg(Ffmpeg):
         使用本地ffmpeg
         """
         super().__init__()
+
+    def add_background_music(self, video_file: 'VideoFile', audio_file: 'AudioFile', volume: int = None) -> 'VideoFile':
+        if volume and not 1 <= volume <= 100:
+            raise ValueError("音量级别必须在 1 到 100 之间")
+        ContextLogger.set_name("ffmpeg")
+        if volume:
+            # 将 1-100 映射到 0.01-2.0
+            volume_factor = (volume - 1) / 49.5 + 0.01
+        output_video_file = video_file.path.parent / f"{video_file.path.stem}_with_music.{video_file.suffix}"
+        audio_file.copy_to(str(output_video_file.parent))
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i", video_file.name,
+            "-stream_loop", "-1",
+            "-i", audio_file.name,
+            "-filter_complex",
+            f"[1:a]aloop=loop=-1:size=2e+09{f",volume={volume_factor}" if volume else ""}[a];[0:a][a]amix=inputs=2:duration=first",
+            "-c:v", "copy",
+            output_video_file.name
+        ]
+        output = CommandLine.run_and_get(command, cwd=str(video_file.path.parent.absolute()), encoding="utf-8")
+        ContextLogger.info(f"添加背景音乐: {output.output}")
+        return VideoFile(str(output_video_file))
+
 
     def change_speed(self, video_file: 'VideoFile', speed_factor: float) -> 'VideoFile':
         if speed_factor <= 0:

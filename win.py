@@ -36,7 +36,10 @@ def open_file_dialog(title="请选择文件"):
         path = shell.SHGetPathFromIDList(pidl)
         # 检查是否是MP3文件
         if isinstance(path, bytes):
-            path = path.decode('utf-8')  # 将字节字符串转换为Unicode字符串
+            try:
+                path = path.decode('utf-8')  # 将字节字符串转换为Unicode字符串
+            except UnicodeDecodeError:
+                path = path.decode('gbk')  # 如果解码失败，尝试使用GBK编码
         if os.path.isfile(path) :
             return path.lower()
         else:
