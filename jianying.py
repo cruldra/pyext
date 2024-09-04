@@ -2068,12 +2068,15 @@ class JianYingDesktop:
         """
         退出剪映桌面版
         """
-        # if self.pid:
-        #     ProcessManager.kill_process_by_pid(self.pid)
-        #     self.pid = None
-        #ProcessManager.kill_process_by_name("JianyingPro.exe")
-        for pid in self.pids:
-            ProcessManager.kill_process_by_pid(pid)
+
+        @retry(stop=stop_after_delay(999999))
+        def body():
+            res = []
+            for pid in self.pids:
+                res.append(ProcessManager.kill_process_by_pid(pid))
+            return all(res)
+
+        return body()
 
     # endregion
 
@@ -2108,6 +2111,7 @@ class JianYingDesktop:
         else:
             # 否则启动剪映桌面版,然后在15秒内每隔2秒检查是否启动成功
             subprocess.Popen(self.executable_path)
+
             @retry(stop=stop_after_delay(60), wait=wait_fixed(1))
             def wait_jianying_main_window():
                 logger.info("正在等待剪映主窗口打开...")

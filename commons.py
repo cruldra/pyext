@@ -17,6 +17,7 @@ import psutil
 import pysubs2
 from PIL import ImageFont, Image, ImageDraw
 from loguru import logger
+from psutil import NoSuchProcess
 
 T = TypeVar('T')
 
@@ -563,17 +564,43 @@ class ProcessManager(object):
             logger.info(f"All processes with name '{process_name}' have been terminated.")
 
     @classmethod
-    def kill_process_by_pid(cls, pid: int):
+    def kill_process_by_pid(cls, pid: int, timeout: int = 5):
         """
         通过进程ID杀死进程
 
-        :param pid: 进程ID
+        Args:
+            pid: 进程ID
+            timeout: 等待进程终止的超时时间（秒）
+
+        Returns:
+            bool: 如果进程成功终止，则返回True，否则返回False
         """
         try:
             process = psutil.Process(pid)
-            process.kill()
+            # 首先尝试温和地终止进程
+            process.terminate()
+
+            # 等待进程结束
+            try:
+                process.wait(timeout=timeout)
+            except psutil.TimeoutExpired:
+                logger.warning(f"进程 {pid} 在 {timeout} 秒内未终止，正在强制结束")
+                process.kill()  # 强制结束进程
+
+            # 再次检查进程是否存在
+            if psutil.pid_exists(pid):
+                logger.error(f"无法终止进程 {pid}")
+                return False
+            else:
+                logger.info(f"进程 {pid} 已成功终止")
+                return True
+
+        except NoSuchProcess:
+            logger.info(f"进程 {pid} 不存在或已经终止")
+            return True
         except Exception as e:
-            logger.error(f"无法杀死进程: {e}")
+            logger.exception(f"终止进程 {pid} 时发生错误: {e}")
+            return False
 
     @staticmethod
     def get_all_pids(process_name: str) -> list[int]:
