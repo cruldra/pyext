@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass
 # region 批处理任务的执行结果
 from datetime import datetime
-from typing import List, Any, Dict, Callable, TypeVar
+from typing import List, Any, Dict, Callable, TypeVar, Type
 from typing import Tuple
 
 import coloredlogs
@@ -754,6 +754,14 @@ class Result:
         如果操作失败，则执行指定的操作
         """
         if self.is_failure:
+            action(self._error)
+        return self
+
+    def on_exception(self, exception_type: Type[Exception], action: Callable[[Exception], None]):
+        """
+        如果操作失败，并且异常类型匹配，则执行指定的操作
+        """
+        if self.is_failure and isinstance(self._error, exception_type):
             action(self._error)
         return self
 

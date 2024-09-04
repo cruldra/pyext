@@ -4,19 +4,17 @@ from typing import Optional, ClassVar
 from pydantic import ValidationError
 
 
-@dataclass
 class BusinessException(Exception):
-    code: int
-    """错误代码"""
-    message: Optional[str] = None
-    """错误信息"""
-    reference_url: Optional[str] = None
-    """参考URL"""
-    cause: Optional[Exception] = None
-    """异常原因"""
 
-    def __post_init__(self):
-        super().__init__(self.message)
+    def __init__(self, code: int, message: Optional[str] = None, reference_url: Optional[str] = None,cause: Optional[Exception] = None):
+        self.code = code
+        """错误代码"""
+        self.message = message
+        """错误信息"""
+        self.reference_url = reference_url
+        """参考链接"""
+        self.cause = cause
+        """原因"""
 
     def __str__(self):
         return f"错误代码: {self.code} \n 详情: {self.message} \n 参考链接: {self.reference_url}"
@@ -68,4 +66,4 @@ def _calculate_exception_code(message: str) -> int:
 
 
 if __name__ == '__main__':
-    print(_calculate_exception_code("ValidationException"))
+    print(_calculate_exception_code("ScriptException"))
