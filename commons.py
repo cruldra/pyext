@@ -291,7 +291,7 @@ class Text(object):
 
     def create_image(self, font_path: str, font_size: int, font_color="white", margin: int = 0, radius: int = 0,
                      background_color="black",
-                     line_spacing: int =0,
+                     line_spacing: int = 0,
                      max_chars_per_line: int = 99999,
                      align: str = "center",
                      ):
@@ -327,7 +327,8 @@ class Text(object):
             x = margin
             if align == "center":
                 x = (max_width - font.getbbox(line)[2]) // 2
-            draw.text((x, margin + i * (font_size + (line_spacing if line_spacing else  0))), line, font=font, fill=font_color)
+            draw.text((x, margin + i * (font_size + (line_spacing if line_spacing else 0))), line, font=font,
+                      fill=font_color)
         return canvas
 
     def convert_to_pysubs2Color(self):
@@ -414,7 +415,6 @@ class CommandLineOutput(object):
     status: int
     """状态码"""
 
-
     @property
     def output(self):
         return "\n".join([self.stdout, self.stderr])
@@ -430,7 +430,7 @@ class CommandLine(object):
                                 encoding=encoding)
 
     @classmethod
-    def run_and_get(cls, command: str|list[str], cwd: str = None, encoding=None) -> CommandLineOutput:
+    def run_and_get(cls, command: str | list[str], cwd: str = None, encoding=None) -> CommandLineOutput:
         """
         阻塞方式运行命令,返回命令行输出
 
@@ -684,11 +684,11 @@ def log_name(name):
 
 
 logger.remove()
-format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{extra[name]}</cyan> - <level>{message}</level>"
+format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> [<level>{level}</level>] <cyan>{extra[name]}</cyan> ({file}:{line}) - <level>{message}</level>"
+logger.add(sink="app.log", format=format ,encoding="utf-8")
 if sys.stdout is not None:
     logger.add(sink=sys.stdout, format=format)
-else:
-    logger.add(sink="app.log", format=format)
+
 logger_name = ContextVar("logger_name", default="root")
 
 
