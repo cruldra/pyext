@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass
 # region 批处理任务的执行结果
 from datetime import datetime
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Callable, TypeVar
 from typing import Tuple
 
 import coloredlogs
@@ -17,6 +17,8 @@ import psutil
 import pysubs2
 from PIL import ImageFont, Image, ImageDraw
 from loguru import logger
+
+T = TypeVar('T')
 
 
 class BatchProcessingResult:
@@ -574,7 +576,7 @@ class ProcessManager(object):
             logger.error(f"无法杀死进程: {e}")
 
     @staticmethod
-    def get_all_pids(process_name: str)-> list[int]:
+    def get_all_pids(process_name: str) -> list[int]:
         """
         获取所有匹配的进程ID
 
@@ -697,14 +699,77 @@ class Size(object):
 
 # endregion
 
-if __name__ == '__main__':
-    # 使用 ContextLogger
-    # ContextLogger.set_name("main")
-    # ContextLogger.info("这是主模块的日志")
-    #
-    # ContextLogger.set_name("database")
-    # ContextLogger.warning("数据库连接警告")
 
-    # 使用示例
+# region 异常处理
+class Result:
+    def __init__(self, value=None, error=None):
+        """
+        用于表示操作结果的类
 
-    pass
+        Args:
+            value: 操作成功时的返回值
+            error: 操作失败时的异常
+        """
+        self._value = value
+        self._error = error
+
+    @property
+    def is_success(self):
+        """
+        检查操作是否成功
+        """
+        return self._error is None
+
+    @property
+    def is_failure(self):
+        """
+        检查操作是否失败
+        """
+        return self._error is not None
+
+    def get_or_none(self):
+        """
+        获取操作结果的值，如果操作失败则返回None
+        """
+        return self._value
+
+    def get_or_throw(self):
+        """
+        获取操作结果的值，如果操作失败则抛出异常
+        """
+        if self.is_failure:
+            raise self._error
+        return self._value
+
+    def on_success(self, action: Callable[[T], None]):
+        """
+        如果操作成功，则执行指定的操作
+        """
+        if self.is_success:
+            action(self._value)
+        return self
+
+    def on_failure(self, action: Callable[[Exception], None]):
+        """
+        如果操作失败，则执行指定的操作
+        """
+        if self.is_failure:
+            action(self._error)
+        return self
+
+
+def run_catching(func: Callable[[], T]) -> Result:
+    """
+    运行指定的函数，并捕获可能的异常
+
+    Args:
+        func: 要运行的函数
+
+    Returns:
+        Result: 包含操作结果的Result对象
+    """
+    try:
+        return Result(value=func())
+    except Exception as e:
+        return Result(error=e)
+# endregion
