@@ -6,10 +6,9 @@ from tkinter import messagebox
 import win32gui
 import wrapt
 from clicknium import clicknium as cc, ui
+from loguru import logger
 from tenacity import retry, stop_after_delay, wait_fixed
 from win32comext.shell import shell, shellcon
-
-from pyext.commons import ContextLogger
 
 
 def open_file_dialog(title="请选择文件"):
@@ -125,14 +124,12 @@ def wait_win(locator, timeout=0, interval=1):
         interval: 等待间隔,默认1秒
     """
     window_name = str(locator).split(".")[-1]
-    ContextLogger.set_name("win")
-
     @retry(stop=stop_after_delay(timeout if timeout > 0 else 86400), wait=wait_fixed(interval))
     def wait_window_exists():
         """
         等待窗口出现
         """
-        ContextLogger.info(f"正在等待窗口[{window_name}]出现...")
+        logger.info(f"正在等待窗口[{window_name}]出现...")
         if not cc.is_existing(locator):
             raise Exception(f"窗口[{window_name}]未打开")
         return True
@@ -142,7 +139,7 @@ def wait_win(locator, timeout=0, interval=1):
         """
         等待窗口处于活动状态
         """
-        ContextLogger.info(f"正在等待窗口[{window_name}]处于活动状态...")
+        logger.info(f"正在等待窗口[{window_name}]处于活动状态...")
         window = ui(locator)
         window_title = window.get_property("Name")
         if not is_window_active(window_title):
@@ -153,9 +150,9 @@ def wait_win(locator, timeout=0, interval=1):
     @wrapt.decorator
     def decorator(wrapped, instance, args, kwargs):
         window_exists = wait_window_exists()
-        ContextLogger.info(f"窗口[{window_name}]已出现")
+        logger.info(f"窗口[{window_name}]已出现")
         window_active = wait_window_active()
-        ContextLogger.info(f"窗口[{window_name}]已处于活动状态")
+        logger.info(f"窗口[{window_name}]已处于活动状态")
         if window_exists and window_active:
             return wrapped(*args, **kwargs)
 
