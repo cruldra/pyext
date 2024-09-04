@@ -573,6 +573,26 @@ class ProcessManager(object):
         except Exception as e:
             logger.error(f"无法杀死进程: {e}")
 
+    @staticmethod
+    def get_all_pids(process_name: str)-> list[int]:
+        """
+        获取所有匹配的进程ID
+
+        Args:
+            process_name: 进程名称
+
+        Returns:
+            list[int] - 匹配的进程ID列表
+        """
+        all_pids = []
+        for proc in psutil.process_iter(['pid', 'name']):
+            try:
+                if proc.info['name'].lower() == process_name.lower():
+                    all_pids.append(proc.info['pid'])
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        return all_pids
+
 
 # endregion
 
@@ -662,6 +682,7 @@ def setup_colored_logger(logger: logging.Logger = None):
             'name': {'color': 'blue'},
         }
     )
+
 
 # region 表示尺寸
 class Size(object):

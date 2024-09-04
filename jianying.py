@@ -4,7 +4,7 @@ import subprocess
 import time
 from dataclasses import field
 from pathlib import Path
-from typing import List, Union, Any, Optional
+from typing import List, Union, Any, Optional, ClassVar
 
 import pyautogui
 import pyperclip
@@ -467,12 +467,14 @@ class Algorithm(BaseModel):
     type: str = ""
     """类型"""
 
+
 class NoiseReduction(BaseModel):
     """
     降噪
     """
     level: int = 0
     """等级"""
+
 
 class VideoAlgorithm(BaseModel):
     algorithms: List[Algorithm] = field(default_factory=list)
@@ -490,7 +492,7 @@ class VideoAlgorithm(BaseModel):
     motion_blur_config: Optional[str] = None
     """运动模糊配置"""
 
-    noise_reduction: Optional[NoiseReduction] =  None
+    noise_reduction: Optional[NoiseReduction] = None
     """降噪"""
 
     path: str = ""
@@ -2001,6 +2003,9 @@ class JianYingDraft:
 
 # region 剪映客户端
 class JianYingDesktop:
+    __process_names: ClassVar[list[str]] = ["jianyingpro.exe", "parfait_crash_handler.exe"]
+    """由剪映桌面版启动的所有进程名"""
+
     def __init__(self, executable_path: str, draft_root_path: str, locator_root_path: str,
                  render_digital_human_timeout: int = 60):
         """
@@ -2025,7 +2030,7 @@ class JianYingDesktop:
 
         self.draft: JianYingDraft | None = None
         """客户端当前打开的草稿"""
-        self.pid: int | None = None
+        self.pids: list[int] = []
         """剪映桌面版进程ID"""
 
     # region 图文成片
@@ -2066,10 +2071,11 @@ class JianYingDesktop:
         # if self.pid:
         #     ProcessManager.kill_process_by_pid(self.pid)
         #     self.pid = None
-        ProcessManager.kill_process_by_name("JianyingPro.exe")
+        #ProcessManager.kill_process_by_name("JianyingPro.exe")
+        for pid in self.pids:
+            ProcessManager.kill_process_by_pid(pid)
 
     # endregion
-
 
     # region 剪辑窗口全屏
     @wait_win(locator.jianyingpro.剪辑窗口)
@@ -2085,6 +2091,7 @@ class JianYingDesktop:
         screen_size = (screen_size.width, screen_size.height - taskbar_size.Height)
         if clip_window and window_size != screen_size:
             ui(locator.jianyingpro.剪辑窗口最大化按钮).click()
+
     # endregion
 
     # region 打开剪映桌面版
@@ -2100,9 +2107,7 @@ class JianYingDesktop:
             started = True
         else:
             # 否则启动剪映桌面版,然后在15秒内每隔2秒检查是否启动成功
-            process = subprocess.Popen(self.executable_path)
-            self.pid = process.pid
-
+            subprocess.Popen(self.executable_path)
             @retry(stop=stop_after_delay(60), wait=wait_fixed(1))
             def wait_jianying_main_window():
                 logger.info("正在等待剪映主窗口打开...")
@@ -2112,7 +2117,10 @@ class JianYingDesktop:
 
             started = wait_jianying_main_window()
 
-        logger.info(f"剪映桌面版启动{'成功' if started else '失败'}")
+        self.pids = []
+        for process_name in self.__process_names:
+            self.pids += ProcessManager.get_all_pids(process_name)
+        logger.info(f"剪映桌面版启动{'成功' if started else '失败'},pids:{self.pids}")
         # 如果启动成功且弹出了草稿列表异常提示窗口,则点击取消按钮
         if started and cc.is_existing(locator.jianyingpro.草稿列表异常提示窗口):
             logger.info("处理草稿列表异常提示窗口")
@@ -2155,6 +2163,7 @@ class JianYingDesktop:
         Returns:
             bool: 如果成功打开草稿, 则返回True
         """
+
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
         def wait_draft_search_result():
             if not cc.is_existing(locator.jianyingpro.草稿列表中的第一个元素):
@@ -2286,6 +2295,7 @@ class JianYingDesktop:
             如果数字人生成成功, 则返回数字人视频文件
         """
         self.select_text_segment(text_segment_index_range)
+
         @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
         def wait_digital_human_tab():
             """在5秒内等待文本轨道选择后出现"添加数字人"tab标签"""
