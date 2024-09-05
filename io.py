@@ -1,3 +1,4 @@
+import datetime
 import http.server
 import json
 import os.path
@@ -383,6 +384,19 @@ class File(object):
     @property
     def short_name(self):
         return self.path.stem
+
+    @property
+    def last_modified(self):
+        """
+        获取文件的最后修改时间
+        """
+        # 获取文件的状态信息
+        file_stat = os.stat(self.path)
+        # 获取最后修改时间
+        modification_time = file_stat.st_mtime
+        # 将时间戳转换为 datetime 对象
+        modification_datetime = datetime.datetime.fromtimestamp(modification_time)
+        return modification_datetime
 
 
 # region 字幕文件
@@ -835,6 +849,18 @@ class Directory(object):
         """
         return str(self.path.absolute())
 
+    @property
+    def last_modified(self):
+        """
+        获取文件的最后修改时间
+        """
+        # 获取文件的状态信息
+        file_stat = os.stat(self.path)
+        # 获取最后修改时间
+        modification_time = file_stat.st_mtime
+        # 将时间戳转换为 datetime 对象
+        modification_datetime = datetime.datetime.fromtimestamp(modification_time)
+        return modification_datetime
     @property
     def name(self):
         """
