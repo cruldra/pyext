@@ -6,7 +6,8 @@ from pydantic import ValidationError
 
 class BusinessException(Exception):
 
-    def __init__(self, code: int, message: Optional[str] = None, reference_url: Optional[str] = None,cause: Optional[Exception] = None):
+    def __init__(self, code: int, message: Optional[str] = None, reference_url: Optional[str] = None,
+                 cause: Optional[Exception] = None):
         self.code = code
         """错误代码"""
         self.message = message
@@ -18,6 +19,15 @@ class BusinessException(Exception):
 
     def __str__(self):
         return f"错误代码: {self.code} \n 详情: {self.message} \n 参考链接: {self.reference_url}"
+
+
+class AuthorizationException(BusinessException):
+    __未授权的用户_CODE: ClassVar[int] = 23361
+
+    @classmethod
+    def 未授权的用户(cls):
+        return cls(code=AuthorizationException.__未授权的用户_CODE,
+                   message="未授权的用户")
 
 
 class ValidationException(BusinessException):
