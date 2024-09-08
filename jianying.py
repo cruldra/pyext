@@ -2112,6 +2112,15 @@ class JianYingDesktop:
             # 否则启动剪映桌面版,然后在15秒内每隔2秒检查是否启动成功
             subprocess.Popen(self.executable_path)
 
+            @retry(stop=stop_after_delay(30), wait=wait_fixed(1))
+            def wait_env_check_btn():
+                logger.info("正在等待环境检测窗口上的确定按钮...")
+                if cc.is_existing(locator.jianyingpro.剪映主窗口):
+                    return True
+                if cc.is_existing(locator.jianyingpro.环境检测窗口上的确认按钮):
+                    ui(locator.jianyingpro.环境检测窗口上的确认按钮).click()
+                    raise Exception("剪映主窗口未打开")
+                return True
             @retry(stop=stop_after_delay(60), wait=wait_fixed(1))
             def wait_jianying_main_window():
                 logger.info("正在等待剪映主窗口打开...")
@@ -2119,7 +2128,7 @@ class JianYingDesktop:
                     raise Exception("剪映主窗口未打开")
                 return True
 
-            started = wait_jianying_main_window()
+            started = wait_env_check_btn() and wait_jianying_main_window()
 
         self.pids = []
         for process_name in self.__process_names:
