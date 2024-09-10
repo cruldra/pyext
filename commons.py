@@ -863,4 +863,30 @@ def run_catching(func: Callable[[], T]) -> Result:
         return Result(value=func())
     except Exception as e:
         return Result(error=e)
+
+
+def run_batch_catching(batch_no:str,list:list[T], func: Callable[[T], T]) -> tuple[BatchProcessingResult, list[T]]:
+    """
+    为列表`list`中的每个元素运行指定的函数`func`，并捕获可能的异常
+    
+    Args:
+        batch_no: 批次号
+        list: 元素列表
+        func: 要运行的函数
+    
+    Returns:
+        tuple[BatchProcessingResult, list[T]]: 包含操作结果的Result对象和函数执行结果列表
+    """
+    result = BatchProcessingResult(batch_no)
+    result.set_total_items(len(list))
+    result_list:list[T] = []
+    for item in list:
+        res = run_catching(func(item))
+        if res.is_success:
+            result_list.append(res._value)
+            result.add_successful_item()
+        else:
+            result.add_failed_item(str(res._error))
+    result.complete()
+    return result, result_list
 # endregion

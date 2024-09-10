@@ -120,12 +120,15 @@ class Task:
             ),
         }
 
-    def run_sync(self, on_stage_change: Callable[[Stage, "Task"], None] = None) -> Any:
+    def run_sync(
+        self, on_stage_change: Callable[[Stage, "Task"], None] = None, last_result=None
+    ) -> Any:
         """
         并行执行此任务及其子任务,任务的执行顺序由放入任务树的顺序决定
 
         Args:
             on_stage_change (Callable[[Stage], None], optional): 阶段变化时的回调函数. Defaults to None.
+            last_result (Any, optional): 上一个任务的执行结果. Defaults to None.
 
         Returns:
             Any: 返回最后一个任务的执行结果
@@ -170,7 +173,6 @@ class Task:
                     on_stage_change(Stage(**stage_dict), ancesto_task)
                 on_stage_change(stage, task)
 
-        last_result = None
         try:
             for task in tasks:
                 try:
