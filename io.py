@@ -24,10 +24,10 @@ from pysubs2 import SSAEvent
 from pyext.commons import CommandLine, Size
 from pyext.exceptions import parse_exceptions
 
-TF = TypeVar('TF', bound='File')
-TPM = TypeVar('TPM', bound=BaseModel)
-TAF = TypeVar('TAF', bound='AudioFile')
-TSBT = TypeVar('TSBT', bound='SubtitleFile')
+TF = TypeVar("TF", bound="File")
+TPM = TypeVar("TPM", bound=BaseModel)
+TAF = TypeVar("TAF", bound="AudioFile")
+TSBT = TypeVar("TSBT", bound="SubtitleFile")
 
 
 # region aeneas
@@ -35,104 +35,105 @@ class LanguageCode(str, Enum):
     """
     aeneas支持的语言代码
     """
-    AFR = 'afr'
-    AMH = 'amh'
-    ARA = 'ara'
-    ARG = 'arg'
-    ASM = 'asm'
-    AZE = 'aze'
-    BEN = 'ben'
-    BOS = 'bos'
-    BUL = 'bul'
-    CAT = 'cat'
-    CES = 'ces'
-    CMN = 'cmn'
+
+    AFR = "afr"
+    AMH = "amh"
+    ARA = "ara"
+    ARG = "arg"
+    ASM = "asm"
+    AZE = "aze"
+    BEN = "ben"
+    BOS = "bos"
+    BUL = "bul"
+    CAT = "cat"
+    CES = "ces"
+    CMN = "cmn"
     """中文普通话"""
-    CYM = 'cym'
-    DAN = 'dan'
-    DEU = 'deu'
-    ELL = 'ell'
-    ENG = 'eng'
-    EPO = 'epo'
-    EST = 'est'
-    EUS = 'eus'
-    FAS = 'fas'
-    FIN = 'fin'
-    FRA = 'fra'
-    GLA = 'gla'
-    GLE = 'gle'
-    GLG = 'glg'
-    GRC = 'grc'
-    GRN = 'grn'
-    GUJ = 'guj'
-    HEB = 'heb'
-    HIN = 'hin'
-    HRV = 'hrv'
-    HUN = 'hun'
-    HYE = 'hye'
-    INA = 'ina'
-    IND = 'ind'
-    ISL = 'isl'
-    ITA = 'ita'
-    JBO = 'jbo'
-    JPN = 'jpn'
-    KAL = 'kal'
-    KAN = 'kan'
-    KAT = 'kat'
-    KIR = 'kir'
-    KOR = 'kor'
-    KUR = 'kur'
-    LAT = 'lat'
-    LAV = 'lav'
-    LFN = 'lfn'
-    LIT = 'lit'
-    MAL = 'mal'
-    MAR = 'mar'
-    MKD = 'mkd'
-    MLT = 'mlt'
-    MSA = 'msa'
-    MYA = 'mya'
-    NAH = 'nah'
-    NEP = 'nep'
-    NLD = 'nld'
-    NOR = 'nor'
-    ORI = 'ori'
-    ORM = 'orm'
-    PAN = 'pan'
-    PAP = 'pap'
-    POL = 'pol'
-    POR = 'por'
-    RON = 'ron'
-    RUS = 'rus'
-    SIN = 'sin'
-    SLK = 'slk'
-    SLV = 'slv'
-    SPA = 'spa'
-    SQI = 'sqi'
-    SRP = 'srp'
-    SWA = 'swa'
-    SWE = 'swe'
-    TAM = 'tam'
-    TAT = 'tat'
-    TEL = 'tel'
-    THA = 'tha'
-    TSN = 'tsn'
-    TUR = 'tur'
-    UKR = 'ukr'
-    URD = 'urd'
-    VIE = 'vie'
-    YUE = 'yue'
-    ZHO = 'zho'
+    CYM = "cym"
+    DAN = "dan"
+    DEU = "deu"
+    ELL = "ell"
+    ENG = "eng"
+    EPO = "epo"
+    EST = "est"
+    EUS = "eus"
+    FAS = "fas"
+    FIN = "fin"
+    FRA = "fra"
+    GLA = "gla"
+    GLE = "gle"
+    GLG = "glg"
+    GRC = "grc"
+    GRN = "grn"
+    GUJ = "guj"
+    HEB = "heb"
+    HIN = "hin"
+    HRV = "hrv"
+    HUN = "hun"
+    HYE = "hye"
+    INA = "ina"
+    IND = "ind"
+    ISL = "isl"
+    ITA = "ita"
+    JBO = "jbo"
+    JPN = "jpn"
+    KAL = "kal"
+    KAN = "kan"
+    KAT = "kat"
+    KIR = "kir"
+    KOR = "kor"
+    KUR = "kur"
+    LAT = "lat"
+    LAV = "lav"
+    LFN = "lfn"
+    LIT = "lit"
+    MAL = "mal"
+    MAR = "mar"
+    MKD = "mkd"
+    MLT = "mlt"
+    MSA = "msa"
+    MYA = "mya"
+    NAH = "nah"
+    NEP = "nep"
+    NLD = "nld"
+    NOR = "nor"
+    ORI = "ori"
+    ORM = "orm"
+    PAN = "pan"
+    PAP = "pap"
+    POL = "pol"
+    POR = "por"
+    RON = "ron"
+    RUS = "rus"
+    SIN = "sin"
+    SLK = "slk"
+    SLV = "slv"
+    SPA = "spa"
+    SQI = "sqi"
+    SRP = "srp"
+    SWA = "swa"
+    SWE = "swe"
+    TAM = "tam"
+    TAT = "tat"
+    TEL = "tel"
+    THA = "tha"
+    TSN = "tsn"
+    TUR = "tur"
+    UKR = "ukr"
+    URD = "urd"
+    VIE = "vie"
+    YUE = "yue"
+    ZHO = "zho"
     """中文"""
 
     @classmethod
-    def from_langdetect(cls, code: str) -> Optional['LanguageCode']:
+    def from_langdetect(cls, code: str) -> Optional["LanguageCode"]:
         mapping = {
-            'en': cls.ENG,
-            'fr': cls.FRA,
-            'zh-cn': cls.CMN,
-            'ru': cls.RUS,
-            'ja': cls.JPN,
+            "en": cls.ENG,
+            "fr": cls.FRA,
+            "zh-cn": cls.CMN,
+            "ru": cls.RUS,
+            "ja": cls.JPN,
             # 添加更多映射...
         }
         return mapping.get(code)
@@ -173,8 +174,13 @@ class Aeneas(object):
             return None
 
     # region 强制对齐音频和文本
-    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None,
-                    format: str = "srt") -> Union['SrtSubtitleFile', 'JsonFile']:
+    def force_align(
+        self,
+        audio_file: TAF,
+        text: str,
+        language_code: LanguageCode = None,
+        format: str = "srt",
+    ) -> Union["SrtSubtitleFile", "JsonFile"]:
         """
         将音频文件与文本强制对齐
 
@@ -200,9 +206,16 @@ class LocalAeneas(Aeneas):
         """
         super().__init__()
 
-    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None,
-                    format: str = "srt") -> Union['SrtSubtitleFile', 'JsonFile']:
-        language_code = language_code or LanguageCode.from_langdetect(self.detect_language(text))
+    def force_align(
+        self,
+        audio_file: TAF,
+        text: str,
+        language_code: LanguageCode = None,
+        format: str = "srt",
+    ) -> Union["SrtSubtitleFile", "JsonFile"]:
+        language_code = language_code or LanguageCode.from_langdetect(
+            self.detect_language(text)
+        )
         content_text_file_name = f"{audio_file.path.stem}-content.txt"
         content_text_file = File(str(audio_file.path.parent / content_text_file_name))
         content_text_file.write_content(text)
@@ -222,7 +235,7 @@ class LocalAeneas(Aeneas):
             audio_file_name,
             content_text_file_name,
             f"task_language={language_code.value}|os_task_file_format={format}|is_text_type=plain",
-            file_name
+            file_name,
         ]
         logger.info(f"使用以下命令行先将音频文件与文本强制对齐: {command}")
         output = CommandLine.run_and_get(command, audio_file_dir).output
@@ -234,7 +247,9 @@ class LocalAeneas(Aeneas):
 
 
 class DockerAeneas(Aeneas):
-    def __init__(self, docker_client: DockerClient, aeneas_image: str = "dongjak/aeneas"):
+    def __init__(
+        self, docker_client: DockerClient, aeneas_image: str = "dongjak/aeneas"
+    ):
         """
         使用Docker运行aeneas
         """
@@ -244,10 +259,19 @@ class DockerAeneas(Aeneas):
         self.aeneas_image = aeneas_image
         """使用的docker镜像"""
 
-    def force_align(self, audio_file: TAF, text: str, language_code: LanguageCode = None, format: str = "srt") -> Union[
-        'SrtSubtitleFile', 'JsonFile']:
-        language_code = language_code or LanguageCode.from_langdetect(self.detect_language(text))
-        content_text_file = File(str(audio_file.path.parent / f"{audio_file.path.stem}-content.txt"))
+    def force_align(
+        self,
+        audio_file: TAF,
+        text: str,
+        language_code: LanguageCode = None,
+        format: str = "srt",
+    ) -> Union["SrtSubtitleFile", "JsonFile"]:
+        language_code = language_code or LanguageCode.from_langdetect(
+            self.detect_language(text)
+        )
+        content_text_file = File(
+            str(audio_file.path.parent / f"{audio_file.path.stem}-content.txt")
+        )
         content_text_file.write_content(text)
         if format == "srt":
             file_name = f"{audio_file.path.stem}.srt"
@@ -256,26 +280,28 @@ class DockerAeneas(Aeneas):
         else:
             raise ValueError(f"不支持的格式: {format}")
         command = (
-            f"bash -c \"source ~/miniconda3/etc/profile.d/conda.sh; "
+            f'bash -c "source ~/miniconda3/etc/profile.d/conda.sh; '
             f"conda activate aeneas; "
             f"python -m aeneas.tools.execute_task "
             f"/tmp_app/{audio_file.path.name} /tmp_app/{audio_file.path.stem}-content.txt "
             f"'task_language={language_code.value}|os_task_file_format={format}|is_text_type=plain' "
-            f"/tmp_app/{file_name};\""
+            f'/tmp_app/{file_name};"'
         )
         local_mapping_dir = str(audio_file.path.parent.absolute())
-        full_command = (
-            f"docker run --rm -it -v {local_mapping_dir}:/tmp_app {self.aeneas_image} {command}"
-        )
+        full_command = f"docker run --rm -it -v {local_mapping_dir}:/tmp_app {self.aeneas_image} {command}"
         logger.info(f"使用以下命令行先将音频文件与文本强制对齐: {full_command}")
-        logs = self.docker_client.containers.run(
-            self.aeneas_image,
-            command,
-            volumes={local_mapping_dir: {'bind': '/tmp_app', 'mode': 'rw'}},
-            remove=True,
-            tty=True,
-            stdin_open=True
-        ).decode('utf-8').strip()
+        logs = (
+            self.docker_client.containers.run(
+                self.aeneas_image,
+                command,
+                volumes={local_mapping_dir: {"bind": "/tmp_app", "mode": "rw"}},
+                remove=True,
+                tty=True,
+                stdin_open=True,
+            )
+            .decode("utf-8")
+            .strip()
+        )
         logger.info(f"将音频文件与文本强制对齐的日志: {logs}")
         if format == "srt":
             return SrtSubtitleFile(str(audio_file.path.parent / file_name))
@@ -315,7 +341,7 @@ class File(object):
         Args:
             content: 文本内容
         """
-        with self.path.open("w", encoding='utf-8') as f:
+        with self.path.open("w", encoding="utf-8") as f:
             f.write(content)
 
     def read_content(self):
@@ -325,10 +351,10 @@ class File(object):
         Returns:
             文件内容
         """
-        with self.path.open("r", encoding='utf-8') as f:
+        with self.path.open("r", encoding="utf-8") as f:
             return f.read()
 
-    def move_to(self, target_path: str) -> 'File':
+    def move_to(self, target_path: str) -> "File":
         """
         移动文件到新路径
 
@@ -341,7 +367,7 @@ class File(object):
         shutil.move(str(self.path), str(target_path))
         return File(str(target_path))
 
-    def rename(self, new_name: str) -> 'File':
+    def rename(self, new_name: str) -> "File":
         """
         重命名文件
 
@@ -354,7 +380,7 @@ class File(object):
         return File(str(self.path.rename(new_name)))
 
     # 这里有个前向引用，所以用字符串, 参考https://poe.com/s/kxbWkhgiPORnv2D02LUJ
-    def copy_to(self, target: 'str | Directory') -> 'File':
+    def copy_to(self, target: "str | Directory") -> "File":
         """
         复制文件到新路径
 
@@ -401,6 +427,7 @@ class File(object):
 
 # region 字幕文件
 
+
 class SubtitleFile(File):
 
     def __init__(self, path: str):
@@ -433,11 +460,11 @@ class AssSubtitleFile(SubtitleFile):
         self.subs.info["PlayResY"] = str(height)
         self.subs.save(str(self.path))
 
-    def move_to(self, target_path: str) -> 'AssSubtitleFile':
+    def move_to(self, target_path: str) -> "AssSubtitleFile":
         file = super().move_to(target_path)
         return AssSubtitleFile(str(file.path.absolute()))
 
-    def copy_to(self, target: 'str | Directory') -> 'AssSubtitleFile':
+    def copy_to(self, target: "str | Directory") -> "AssSubtitleFile":
         file = super().copy_to(target)
         return AssSubtitleFile(str(file.path.absolute()))
 
@@ -506,7 +533,9 @@ class AssSubtitleFile(SubtitleFile):
         self.subs.styles[style_name] = pysubs2.SSAStyle(**kwargs)
         self.subs.save(str(self.path))
 
-    def apply_style(self, style_name: str, events_filter: callable = lambda event: True):
+    def apply_style(
+        self, style_name: str, events_filter: callable = lambda event: True
+    ):
         """
         应用样式
 
@@ -529,11 +558,14 @@ class AssSubtitleFile(SubtitleFile):
         style_name = list(self.subs.styles.keys())[index]
         self.apply_style(style_name)
 
-    def set_max_width(self, max_width: int,
-                      font_path: str,
-                      font_size: int,
-                      margin_left: int = 20, margin_right: int = 20
-                      ):
+    def set_max_width(
+        self,
+        max_width: int,
+        font_path: str,
+        font_size: int,
+        margin_left: int = 20,
+        margin_right: int = 20,
+    ):
         """
         设置最大宽度
 
@@ -563,7 +595,14 @@ class AssSubtitleFile(SubtitleFile):
             # region 自动位置
             new_line = r"\N\N".join(lines)
             new_events.append(
-                pysubs2.SSAEvent(start=event.start, end=event.end, style=event.style, name="", text=new_line))
+                pysubs2.SSAEvent(
+                    start=event.start,
+                    end=event.end,
+                    style=event.style,
+                    name="",
+                    text=new_line,
+                )
+            )
             # endregion
 
             # new_events.append(
@@ -593,7 +632,7 @@ class VideoFile(File):
     def __init__(self, path: str):
         super().__init__(path)
 
-    def extract_audio(self, audio_file_name: str = None) -> 'AudioFile':
+    def extract_audio(self, audio_file_name: str = None) -> "AudioFile":
         """
         提取视频的音频,然后放到视频文件的同级目录下
 
@@ -608,7 +647,9 @@ class VideoFile(File):
         if audio_file_name is None:
             audio_file_name = f"{self.path.stem}.mp3"
         audio_file_path = self.path.parent / audio_file_name
-        CommandLine.run(f"ffmpeg -i {str(self.path.absolute())} -q:a 0 -map a {str(audio_file_path.absolute())}")
+        CommandLine.run(
+            f"ffmpeg -i {str(self.path.absolute())} -q:a 0 -map a {str(audio_file_path.absolute())}"
+        )
         return AudioFile(str(audio_file_path))
 
     @property
@@ -617,6 +658,7 @@ class VideoFile(File):
         获取视频音量
         """
         from pyext.ffmpeg import Ffmpeg
+
         ffmpeg = Ffmpeg.from_env()
         return ffmpeg.get_video_volume(self)
 
@@ -629,11 +671,12 @@ class VideoFile(File):
             tuple[int, int]: 宽度, 高度
         """
         result = CommandLine.run_and_get(
-            f"ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 \"{self.path.absolute()}\"")
+            f'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "{self.path.absolute()}"'
+        )
         width, height = result.stdout.strip().split("x")
         return int(width), int(height)
 
-    def resize(self, new_width: int, new_height: int) -> 'VideoFile':
+    def resize(self, new_width: int, new_height: int) -> "VideoFile":
         """
         调整视频分辨率
 
@@ -646,7 +689,8 @@ class VideoFile(File):
         """
         new_video_file = self.path.parent / f"{self.path.stem}-resized.mp4"
         output = CommandLine.run_and_get(
-            f"""ffmpeg -i "{str(self.path.absolute())}" -vf scale={new_width}:{new_height} -c:a copy  "{str(new_video_file.absolute())}" """)
+            f"""ffmpeg -i "{str(self.path.absolute())}" -vf scale={new_width}:{new_height} -c:a copy  "{str(new_video_file.absolute())}" """
+        )
         return VideoFile(str(new_video_file))
 
 
@@ -668,6 +712,7 @@ class Mp3File(AudioFile):
 
 # endregion
 
+
 # region yaml文件
 class YamlFile(File):
     def __init__(self, path: str):
@@ -683,7 +728,7 @@ class YamlFile(File):
         Returns:
             TPM: Pydantic 模型实例
         """
-        with open(self.path, 'r', encoding="utf-8") as file:
+        with open(self.path, "r", encoding="utf-8") as file:
             yaml_data = yaml.safe_load(file)
 
         # 将 YAML 数据转换为 Pydantic 类实例
@@ -691,6 +736,7 @@ class YamlFile(File):
 
 
 # endregion
+
 
 # region Json文件
 class JsonFile(File):
@@ -702,7 +748,7 @@ class JsonFile(File):
         """
         读取文件内容并将其转换为字典对象
         """
-        with open(self.path, 'r', encoding="utf-8") as file:
+        with open(self.path, "r", encoding="utf-8") as file:
             return json.load(file)
 
     def write_dict(self, dict: dict[str, any]):
@@ -721,7 +767,7 @@ class JsonFile(File):
         """
         读取文件内容并将其转换为数据类对象
         """
-        with open(self.path, 'r', encoding="utf-8") as file:
+        with open(self.path, "r", encoding="utf-8") as file:
             return dataclass.from_json(file.read())
 
     def write_pydanitc_model(self, model: TPM):
@@ -747,7 +793,7 @@ class JsonFile(File):
         # 读取json为字典
         # region 尝试移除BOM头
         json_str = self.read_content()
-        if json_str.startswith('\ufeff'):
+        if json_str.startswith("\ufeff"):
             json_str = json_str[1:]
         # endregion
         data = json.loads(json_str)
@@ -775,7 +821,7 @@ class JsonFile(File):
         # 读取json为字典
         # region 尝试移除BOM头
         json_str = self.read_content()
-        if json_str.startswith('\ufeff'):
+        if json_str.startswith("\ufeff"):
             json_str = json_str[1:]
         # endregion
         data = json.loads(json_str)
@@ -797,10 +843,12 @@ class JsonFile(File):
         """
         读取文件内容并将其转换为 Addict 对象
         """
-        with open(self.path, 'r', encoding="utf-8") as file:
+        with open(self.path, "r", encoding="utf-8") as file:
             return Dict(json.load(file))
 
-    def read_as_pydanitc_model(self, model: Type[TPM], additional_data: dict[str, any] = None) -> TPM:
+    def read_as_pydanitc_model(
+        self, model: Type[TPM], additional_data: dict[str, any] = None
+    ) -> TPM:
         """
         读取文件内容并将其转换为 Pydantic 模型
 
@@ -813,7 +861,7 @@ class JsonFile(File):
         Raises:
             BusinessException: 读取文件内容失败时抛出异常
         """
-        with open(self.path, 'r', encoding="utf-8") as file:
+        with open(self.path, "r", encoding="utf-8") as file:
             try:
                 dict = self.read_as_addict()
                 if additional_data:
@@ -842,6 +890,43 @@ class Directory(object):
         if not self.path.is_dir():
             raise ValueError(f"路径 {path} 不是一个目录")
 
+    def has_sibling(self, name: str):
+        """
+        检查这个目录所在的同级目录中是否存在指定名称的目录
+
+        Args:
+            name: 要检查的目录名称
+        
+        Returns:
+            bool - 如果存在指定名称的目录，则返回 True，否则返回 False。
+        
+        Examples:
+            假设有如下目录结构：
+            ```markdown
+                📦resources
+                ┣ 📂fonts
+                ┣ 📂font_presets
+                ┗ 📂prompts
+            ```
+            >>> dir = Directory("resources")
+            >>> dir.has_sibling("prompts")
+            True
+        """
+        return self.path.parent.joinpath(name).exists()
+
+    def copy_to_sibling(self, name: str):
+        """
+        将这个目录复制为同级目录
+
+        Args:
+            name: 新目录的名称
+
+        Returns:
+            Directory - 新目录对象
+        """
+        npath = shutil.copytree(self.path, self.path.parent / name)
+        return Directory(str(npath))
+
     @property
     def absolute_path(self):
         """
@@ -861,6 +946,7 @@ class Directory(object):
         # 将时间戳转换为 datetime 对象
         modification_datetime = datetime.datetime.fromtimestamp(modification_time)
         return modification_datetime
+
     @property
     def name(self):
         """
@@ -913,7 +999,7 @@ class Directory(object):
             file = File(str(file_path))
         return file
 
-    def new_folders(self, sub_folder_path: str) -> 'Directory':
+    def new_folders(self, sub_folder_path: str) -> "Directory":
         """
         在目录下创建子目录
 
@@ -961,7 +1047,11 @@ class Directory(object):
         """
         列出目录下的所有json文件
         """
-        return [JsonFile(str(f)) for f in self.path.iterdir() if f.is_file() and f.suffix == ".json"]
+        return [
+            JsonFile(str(f))
+            for f in self.path.iterdir()
+            if f.is_file() and f.suffix == ".json"
+        ]
 
     def list_ass_files(self):
         """
@@ -975,7 +1065,9 @@ class Directory(object):
                 logger.info(f"无法将文件{f}读取为一个ass文件")
                 return None
 
-        ret = [parse(f) for f in self.path.iterdir() if f.is_file() and f.suffix == ".ass"]
+        ret = [
+            parse(f) for f in self.path.iterdir() if f.is_file() and f.suffix == ".ass"
+        ]
 
         return [f for f in ret if f is not None]
 
@@ -1050,11 +1142,21 @@ class GitRepository(Directory):
             CommandLine.run_and_get(f"git add {' '.join(files)}", cwd=str(self.path))
             CommandLine.run_and_get(f"git commit -m '{message}'", cwd=str(self.path))
         else:
-            print(CommandLine.run_and_get(f"git commit -am '{message}'", cwd=str(self.path)))
+            print(
+                CommandLine.run_and_get(
+                    f"git commit -am '{message}'", cwd=str(self.path)
+                )
+            )
 
     @classmethod
-    def from_remote(cls, url: str, directory: str = None, name: str = None, branch: str = "master",
-                    recursive: bool = False):
+    def from_remote(
+        cls,
+        url: str,
+        directory: str = None,
+        name: str = None,
+        branch: str = "master",
+        recursive: bool = False,
+    ):
         """
         从远程仓库克隆
 
@@ -1090,12 +1192,14 @@ class ImageFile(File):
         获取图片大小
         """
         from PIL import Image
+
         image = Image.open(self.path)
         width, height = image.size
         return Size(width, height)
 
 
 # endregion
+
 
 # region 压缩文件
 class CompressedFile(File):
@@ -1131,8 +1235,10 @@ class ZipFile(CompressedFile):
                 file_info = zf.getinfo(file_name)
 
                 # 读取文件内容
-                with zf.open(file_info, pwd=password.encode() if password else None) as file:
-                    content = file.read().decode('utf-8')
+                with zf.open(
+                    file_info, pwd=password.encode() if password else None
+                ) as file:
+                    content = file.read().decode("utf-8")
 
                 return content
         except zipfile.BadZipFile:
@@ -1156,7 +1262,7 @@ class ZipFile(CompressedFile):
 # endregion
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # json_file = JsonFile("../.locator/jianyingpro.cnstore")
     # json_file.set_value_by_jsonpath(
     #     "locators[6].content.childControls[0].childControls[0].childControls[0].identifier.index.value", 2)
@@ -1168,7 +1274,8 @@ if __name__ == '__main__':
     # time.sleep(1000)
     # pass
     video_file = VideoFile(
-        r"C:\Users\cruld\Documents\WeChat Files\wxid_gsdq4x6zge5a12\FileStorage\Video\2024-08\output.mp4")
+        r"C:\Users\cruld\Documents\WeChat Files\wxid_gsdq4x6zge5a12\FileStorage\Video\2024-08\output.mp4"
+    )
     # print(video_file.resolution)
     new_video_file = video_file.resize(1080, 1920)
     print(new_video_file.exists())

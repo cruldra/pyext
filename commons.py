@@ -526,14 +526,65 @@ class ProcessManager(object):
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
         return matching_processes
+    
+    @staticmethod
+    def _find_processes_by_port(port: int) -> List[psutil.Process]:
+        """
+        查找占用指定端口的所有进程
+
+        Args:
+            port: 端口号
+
+        Returns:
+            包含所有占用该端口的进程的列表
+        """
+        result = []
+        for conn in psutil.net_connections():
+            if conn.laddr.port == port:
+                try:
+                    result.append(psutil.Process(conn.pid))
+                except psutil.NoSuchProcess:
+                    pass  # 进程可能在我们获取它之前就已经结束了
+        return result
+    @classmethod
+    def kill_process_by_port(cls, port: int, timeout: int = 5) -> None:
+        """
+        通过端口杀死所有匹配的进程
+        
+        Args:
+            port: 端口号
+            timeout: 等待进程终止的超时时间（秒）
+        """
+        # 查找占用指定端口的进程
+        processes = cls._find_processes_by_port(port)
+        
+        if not processes:
+            return
+        
+        # 尝试终止进程
+        for proc in processes:
+            logger.info(f"正在终止进程 PID: {proc.pid}, 名称: {proc.name()}")
+            proc.terminate()
+        
+        # 等待进程终止
+        gone, alive = psutil.wait_procs(processes, timeout=timeout)
+        
+        # 如果仍有进程存活，强制结束它们
+        for proc in alive:
+            logger.info(f"强制终止进程 PID: {proc.pid}, 名称: {proc.name()}")
+            proc.kill()
+        
+        logger.info(f"成功终止了 {len(gone)} 个进程，强制终止了 {len(alive)} 个进程")
+        
 
     @classmethod
     def kill_process_by_name(cls, process_name: str, timeout: int = 5) -> None:
         """
         通过进程名称杀死所有匹配的进程
 
-        :param process_name: 进程名称
-        :param timeout: 等待进程终止的超时时间（秒）
+        Args:
+            process_name: 进程名称
+            timeout: 等待进程终止的超时时间（秒）
         """
         processes = cls.get_processes_by_name(process_name)
         if not processes:
@@ -634,9 +685,12 @@ class Netcat(object):
         """
         连接到目标
 
-        :param ip: 目标IP
-        :param port: 目标端口
-        :return: 如果连接成功, 则返回True, 否则返回False
+        Args:
+            ip: 目标IP地址
+            port: 目标端口
+
+        Returns:
+            bool: 如果连接成功，则返回True，否则返回False
         """
         try:
             # 创建一个 socket 对象
@@ -678,7 +732,9 @@ class Netcat(object):
     def get_available_port(cls) -> int:
         """
         获取本机上的一个空闲端口
-        :return: 空闲端口
+
+        Returns:
+            int - 空闲端口
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.bind(('localhost', 0))
