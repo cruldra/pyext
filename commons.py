@@ -32,30 +32,30 @@ class BatchProcessingResult:
 
     Example:
         ```python
-        from datetime import datetime
+            from datetime import datetime
 
-# 创建一个新的批处理结果实例
-result = BatchProcessingResult("TASK_001", datetime.now())
+            # 创建一个新的批处理结果实例
+            result = BatchProcessingResult("TASK_001", datetime.now())
 
-# 设置总项目数
-result.set_total_items(100)
+            # 设置总项目数
+            result.set_total_items(100)
 
-# 模拟处理过程
-for i in range(100):
-    success = i % 10 != 0  # 假设每10个项目中有1个失败
-    result.add_processed_item(success)
-    if not success:
-        result.add_error("ProcessingError", f"Failed to process item {i}")
+            # 模拟处理过程
+            for i in range(100):
+                success = i % 10 != 0  # 假设每10个项目中有1个失败
+                result.add_processed_item(success)
+                if not success:
+                    result.add_error("ProcessingError", f"Failed to process item {i}")
 
-# 添加额外信息
-result.add_additional_info("processor_version", "1.0.3")
+            # 添加额外信息
+            result.add_additional_info("processor_version", "1.0.3")
 
-# 完成任务
-result.complete(datetime.now())
+            # 完成任务
+            result.complete(datetime.now())
 
-# 获取摘要
-summary = result.get_summary()
-print(summary)
+            # 获取摘要
+            summary = result.get_summary()
+            print(summary)
         ```
     """
 
