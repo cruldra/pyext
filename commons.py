@@ -7,7 +7,8 @@ import textwrap
 import time
 import uuid
 from dataclasses import dataclass
-
+import warnings
+import functools
 # region 批处理任务的执行结果
 from datetime import datetime
 from typing import List, Any, Dict, Callable, TypeVar, Type
@@ -88,14 +89,14 @@ class BatchProcessingResult:
         完成度
         """
         return self.processed_items / self.total_items if self.total_items > 0 else 0
-    
+
     @property
     def success_rate(self) -> float:
         """
         成功率
         """
         return self.successful_items / self.total_items if self.total_items > 0 else 0
-    
+
     @property
     def failure_rate(self) -> float:
         """
@@ -314,16 +315,16 @@ class Text(object):
     # endregion
 
     def create_image(
-        self,
-        font_path: str,
-        font_size: int,
-        font_color="white",
-        margin: int = 0,
-        radius: int = 0,
-        background_color="black",
-        line_spacing: int = 0,
-        max_chars_per_line: int = 99999,
-        align: str = "center",
+            self,
+            font_path: str,
+            font_size: int,
+            font_color="white",
+            margin: int = 0,
+            radius: int = 0,
+            background_color="black",
+            line_spacing: int = 0,
+            max_chars_per_line: int = 99999,
+            align: str = "center",
     ):
         """
         创建图像
@@ -485,7 +486,7 @@ class CommandLine(object):
 
     @classmethod
     def run_and_get(
-        cls, command: str | list[str], cwd: str = None, encoding=None
+            cls, command: str | list[str], cwd: str = None, encoding=None
     ) -> CommandLineOutput:
         """
         阻塞方式运行命令,返回命令行输出
@@ -904,7 +905,7 @@ class Result:
         return self
 
     def on_exception(
-        self, exception_type: Type[Exception], action: Callable[[Exception], None]
+            self, exception_type: Type[Exception], action: Callable[[Exception], None]
     ):
         """
         如果操作失败，并且异常类型匹配，则执行指定的操作
@@ -931,7 +932,7 @@ def run_catching(func: Callable[[], T]) -> Result:
 
 
 def run_batch_catching(
-    batch_no: str, list: list[T], func: Callable[[T,int], Any]
+        batch_no: str, list: list[T], func: Callable[[T, int], Any]
 ) -> tuple[BatchProcessingResult, list[Any]]:
     """
     为列表`list`中的每个元素运行指定的函数`func`，并捕获可能的异常
@@ -947,7 +948,7 @@ def run_batch_catching(
     result = BatchProcessingResult(batch_no)
     result.set_total_items(len(list))
     result_list: list[Any] = []
-    index =0
+    index = 0
     for item in list:
 
         def callback():
@@ -965,3 +966,22 @@ def run_batch_catching(
 
 
 # endregion
+
+
+def deprecated(reason):
+    """
+    这个装饰器用于标记函数为已过期
+    :param reason: 解释为什么函数已过期以及应该使用什么替代
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def new_func(*args, **kwargs):
+            warnings.warn(f"{func.__name__} 已过期: {reason}",
+                          category=DeprecationWarning,
+                          stacklevel=2)
+            return func(*args, **kwargs)
+
+        return new_func
+
+    return decorator

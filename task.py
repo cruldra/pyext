@@ -98,7 +98,7 @@ class Task:
         """ 父任务 """
         self.id = str(uuid.uuid4())
         """ 任务的唯一标识 """
-        self.stage: Stage = None
+        self.stage: Stage|None = None
         """ 任务当前所在的阶段 """
 
     def get_ancestors(self) -> list["Task"]:
