@@ -11,7 +11,7 @@ from flask import Flask
 from pydantic import BaseModel, Field
 
 
-class Notificatioins(object):
+class Notifications(object):
     def __init__(self):
         self.id = f"notifications-container-{shortuuid.uuid()}"
         self.ops = MantineNotificationOperations(self.id)
@@ -34,9 +34,11 @@ class DashApp(object):
     表示一个Dash应用程序
     """
 
-    def __init__(self, layout: Any, flask_server: Flask = None):
+    def __init__(self, layout: Any, flask_server: Flask = None, long_callback_manager=None):
         self.flask_server = flask_server
-        self.app = dash.Dash(server=flask_server) if flask_server is not None else dash.Dash()
+        self.app = dash.Dash(server=flask_server,
+                             long_callback_manager=long_callback_manager) if flask_server is not None else dash.Dash(
+            long_callback_manager=long_callback_manager)
         self.app.layout = layout
 
     def start_server(self, parameters: RunParameters):
