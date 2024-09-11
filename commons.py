@@ -7,6 +7,7 @@ import textwrap
 import time
 import uuid
 from dataclasses import dataclass
+
 # region 批处理任务的执行结果
 from datetime import datetime
 from typing import List, Any, Dict, Callable, TypeVar, Type
@@ -19,7 +20,7 @@ from PIL import ImageFont, Image, ImageDraw
 from loguru import logger
 from psutil import NoSuchProcess
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class BatchProcessingResult:
@@ -81,6 +82,27 @@ class BatchProcessingResult:
         self.additional_info: Dict[str, Any] = {}
         """额外信息"""
 
+    @property
+    def completeness(self) -> float:
+        """
+        完成度
+        """
+        return self.processed_items / self.total_items if self.total_items > 0 else 0
+    
+    @property
+    def success_rate(self) -> float:
+        """
+        成功率
+        """
+        return self.successful_items / self.total_items if self.total_items > 0 else 0
+    
+    @property
+    def failure_rate(self) -> float:
+        """
+        失败率
+        """
+        return self.failed_items / self.total_items if self.total_items > 0 else 0
+
     def complete(self, end_time: datetime = None, fail_threshold: int = None):
         """
         完成任务
@@ -95,7 +117,9 @@ class BatchProcessingResult:
         if fail_threshold is None:
             fail_threshold = self.total_items // 2
         if self.failed_items > fail_threshold:
-            self.fail(self.end_time, f"Failed items exceed the threshold of {fail_threshold}")
+            self.fail(
+                self.end_time, f"Failed items exceed the threshold of {fail_threshold}"
+            )
 
     def fail(self, end_time: datetime, reason: str):
         """
@@ -128,11 +152,9 @@ class BatchProcessingResult:
         """
         添加错误
         """
-        self.errors.append({
-            "type": error_type,
-            "message": error_message,
-            "time": datetime.now()
-        })
+        self.errors.append(
+            {"type": error_type, "message": error_message, "time": datetime.now()}
+        )
 
     def set_total_items(self, total: int):
         """
@@ -182,11 +204,12 @@ class BatchProcessingResult:
             "successful_items": self.successful_items,
             "failed_items": self.failed_items,
             "error_count": len(self.errors),
-            "additional_info": self.additional_info
+            "additional_info": self.additional_info,
         }
 
 
 # endregion
+
 
 # region 数字范围
 class IntRange(object):
@@ -207,11 +230,12 @@ class IntRange(object):
 
 # endregion
 
+
 # region 文本处理
 class Text(object):
-    CHINESE_LINE_BREAKER = '[。！？]'
+    CHINESE_LINE_BREAKER = "[。！？]"
     """中文断句符"""
-    ENGLISH_LINE_BREAKER = '[.!?]'
+    ENGLISH_LINE_BREAKER = "[.!?]"
     """英文断句符"""
 
     def __init__(self, value: str):
@@ -225,7 +249,7 @@ class Text(object):
         """
         是否是多行文本
         """
-        return self.value.count('\n') > 0
+        return self.value.count("\n") > 0
 
     # region 删除所有空格和换行符
     def remove_spaces_and_newlines(self):
@@ -273,7 +297,7 @@ class Text(object):
         """
         font = ImageFont.truetype(font_path, font_size)
         # 将文本分割成多行
-        lines = self.value.split('\n')
+        lines = self.value.split("\n")
 
         # 计算所有行中最宽的一行
         max_width = max(font.getbbox(line)[2] for line in lines)
@@ -289,12 +313,18 @@ class Text(object):
 
     # endregion
 
-    def create_image(self, font_path: str, font_size: int, font_color="white", margin: int = 0, radius: int = 0,
-                     background_color="black",
-                     line_spacing: int = 0,
-                     max_chars_per_line: int = 99999,
-                     align: str = "center",
-                     ):
+    def create_image(
+        self,
+        font_path: str,
+        font_size: int,
+        font_color="white",
+        margin: int = 0,
+        radius: int = 0,
+        background_color="black",
+        line_spacing: int = 0,
+        max_chars_per_line: int = 99999,
+        align: str = "center",
+    ):
         """
         创建图像
 
@@ -320,15 +350,23 @@ class Text(object):
             total_height += line_spacing * (len(lines) - 1)
         max_width += margin * 2
         total_height += margin * 2
-        canvas = Image.new('RGBA', (max_width, total_height), (0, 0, 0, 0))
+        canvas = Image.new("RGBA", (max_width, total_height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(canvas)
-        draw.rounded_rectangle([(0, 0), (max_width - 1, total_height - 1)], radius=radius, fill=background_color)
+        draw.rounded_rectangle(
+            [(0, 0), (max_width - 1, total_height - 1)],
+            radius=radius,
+            fill=background_color,
+        )
         for i, line in enumerate(lines):
             x = margin
             if align == "center":
                 x = (max_width - font.getbbox(line)[2]) // 2
-            draw.text((x, margin + i * (font_size + (line_spacing if line_spacing else 0))), line, font=font,
-                      fill=font_color)
+            draw.text(
+                (x, margin + i * (font_size + (line_spacing if line_spacing else 0))),
+                line,
+                font=font,
+                fill=font_color,
+            )
         return canvas
 
     def convert_to_pysubs2Color(self):
@@ -338,11 +376,17 @@ class Text(object):
         Returns:
             pysubs2.Color: 颜色对象
         """
-        data = tuple(map(lambda v: int(float(v)), self.value.replace("rgba(", "").replace(")", "").split(",")))
+        data = tuple(
+            map(
+                lambda v: int(float(v)),
+                self.value.replace("rgba(", "").replace(")", "").split(","),
+            )
+        )
         return pysubs2.Color(data[0], data[1], data[2], data[3])
 
 
 # endregion
+
 
 # region 对象工具
 class Objects(object):
@@ -362,8 +406,11 @@ class Objects(object):
         # 正则表达式匹配 'title' 后跟一个或多个数字
         fields_pattern = re.compile(fields_regex)
         # 使用列表推导式获取所有匹配的属性值
-        fields_values = [getattr(obj, attr) for attr in dir(obj)
-                         if fields_pattern.match(attr) and hasattr(obj, attr)]
+        fields_values = [
+            getattr(obj, attr)
+            for attr in dir(obj)
+            if fields_pattern.match(attr) and hasattr(obj, attr)
+        ]
 
         # 按照数字顺序排序
         return fields_values
@@ -408,6 +455,7 @@ class CommandLineOutput(object):
     """
     命令行输出
     """
+
     stdout: str
     """标准输出"""
     stderr: str
@@ -426,11 +474,19 @@ class CommandLine(object):
         """
         运行命令,返回进程对象
         """
-        return subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=cwd,
-                                encoding=encoding)
+        return subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=cwd,
+            encoding=encoding,
+        )
 
     @classmethod
-    def run_and_get(cls, command: str | list[str], cwd: str = None, encoding=None) -> CommandLineOutput:
+    def run_and_get(
+        cls, command: str | list[str], cwd: str = None, encoding=None
+    ) -> CommandLineOutput:
         """
         阻塞方式运行命令,返回命令行输出
 
@@ -519,14 +575,14 @@ class ProcessManager(object):
             list[psutil.Process]: 匹配的进程对象列表
         """
         matching_processes = []
-        for proc in psutil.process_iter(['name']):
+        for proc in psutil.process_iter(["name"]):
             try:
-                if process_name.lower() in proc.info['name'].lower():
+                if process_name.lower() in proc.info["name"].lower():
                     matching_processes.append(proc)
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
         return matching_processes
-    
+
     @staticmethod
     def _find_processes_by_port(port: int) -> List[psutil.Process]:
         """
@@ -546,36 +602,36 @@ class ProcessManager(object):
                 except psutil.NoSuchProcess:
                     pass  # 进程可能在我们获取它之前就已经结束了
         return result
+
     @classmethod
     def kill_process_by_port(cls, port: int, timeout: int = 5) -> None:
         """
         通过端口杀死所有匹配的进程
-        
+
         Args:
             port: 端口号
             timeout: 等待进程终止的超时时间（秒）
         """
         # 查找占用指定端口的进程
         processes = cls._find_processes_by_port(port)
-        
+
         if not processes:
             return
-        
+
         # 尝试终止进程
         for proc in processes:
             logger.info(f"正在终止进程 PID: {proc.pid}, 名称: {proc.name()}")
             proc.terminate()
-        
+
         # 等待进程终止
         gone, alive = psutil.wait_procs(processes, timeout=timeout)
-        
+
         # 如果仍有进程存活，强制结束它们
         for proc in alive:
             logger.info(f"强制终止进程 PID: {proc.pid}, 名称: {proc.name()}")
             proc.kill()
-        
+
         logger.info(f"成功终止了 {len(gone)} 个进程，强制终止了 {len(alive)} 个进程")
-        
 
     @classmethod
     def kill_process_by_name(cls, process_name: str, timeout: int = 5) -> None:
@@ -604,15 +660,21 @@ class ProcessManager(object):
             except psutil.AccessDenied:
                 logger.info(f"Access denied to terminate process {pid}.")
             except psutil.TimeoutExpired:
-                logger.info(f"Process {pid} did not terminate in time, forcefully killing it.")
+                logger.info(
+                    f"Process {pid} did not terminate in time, forcefully killing it."
+                )
                 proc.kill()
 
         # 再次检查进程是否还存在
         remaining = cls.get_processes_by_name(process_name)
         if remaining:
-            logger.info(f"Warning: {len(remaining)} processes with name '{process_name}' still running.")
+            logger.info(
+                f"Warning: {len(remaining)} processes with name '{process_name}' still running."
+            )
         else:
-            logger.info(f"All processes with name '{process_name}' have been terminated.")
+            logger.info(
+                f"All processes with name '{process_name}' have been terminated."
+            )
 
     @classmethod
     def kill_process_by_pid(cls, pid: int, timeout: int = 5):
@@ -665,10 +727,10 @@ class ProcessManager(object):
             list[int] - 匹配的进程ID列表
         """
         all_pids = []
-        for proc in psutil.process_iter(['pid', 'name']):
+        for proc in psutil.process_iter(["pid", "name"]):
             try:
-                if proc.info['name'].lower() == process_name.lower():
-                    all_pids.append(proc.info['pid'])
+                if proc.info["name"].lower() == process_name.lower():
+                    all_pids.append(proc.info["pid"])
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
         return all_pids
@@ -737,7 +799,7 @@ class Netcat(object):
             int - 空闲端口
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('localhost', 0))
+        sock.bind(("localhost", 0))
         port = sock.getsockname()[1]
         sock.close()
         return port
@@ -745,27 +807,28 @@ class Netcat(object):
 
 # endregion
 
+
 def setup_colored_logger(logger: logging.Logger = None):
     """
     设置带颜色的日志记录器
     """
     coloredlogs.install(
         logger=logger,
-        level='DEBUG',
-        fmt='%(asctime)s [%(levelname)s] %(name)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
+        level="DEBUG",
+        fmt="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
         level_styles={
-            'debug': {'color': 'cyan'},
-            'info': {'color': 'green'},
-            'warning': {'color': 'yellow'},
-            'error': {'color': 'red', 'bold': True},
-            'critical': {'color': 'red', 'bold': True, 'background': 'white'},
+            "debug": {"color": "cyan"},
+            "info": {"color": "green"},
+            "warning": {"color": "yellow"},
+            "error": {"color": "red", "bold": True},
+            "critical": {"color": "red", "bold": True, "background": "white"},
         },
         field_styles={
-            'asctime': {'color': 'green'},
-            'levelname': {'color': 'magenta', 'bold': True},
-            'name': {'color': 'blue'},
-        }
+            "asctime": {"color": "green"},
+            "levelname": {"color": "magenta", "bold": True},
+            "name": {"color": "blue"},
+        },
     )
 
 
@@ -840,7 +903,9 @@ class Result:
             action(self._error)
         return self
 
-    def on_exception(self, exception_type: Type[Exception], action: Callable[[Exception], None]):
+    def on_exception(
+        self, exception_type: Type[Exception], action: Callable[[Exception], None]
+    ):
         """
         如果操作失败，并且异常类型匹配，则执行指定的操作
         """
@@ -865,28 +930,38 @@ def run_catching(func: Callable[[], T]) -> Result:
         return Result(error=e)
 
 
-def run_batch_catching(batch_no:str,list:list[T], func: Callable[[T], T]) -> tuple[BatchProcessingResult, list[T]]:
+def run_batch_catching(
+    batch_no: str, list: list[T], func: Callable[[T,int], Any]
+) -> tuple[BatchProcessingResult, list[Any]]:
     """
     为列表`list`中的每个元素运行指定的函数`func`，并捕获可能的异常
-    
+
     Args:
         batch_no: 批次号
         list: 元素列表
         func: 要运行的函数
-    
+
     Returns:
         tuple[BatchProcessingResult, list[T]]: 包含操作结果的Result对象和函数执行结果列表
     """
     result = BatchProcessingResult(batch_no)
     result.set_total_items(len(list))
-    result_list:list[T] = []
+    result_list: list[Any] = []
+    index =0
     for item in list:
-        res = run_catching(func(item))
+
+        def callback():
+            return func(item, index)
+
+        res = run_catching(callback)
         if res.is_success:
             result_list.append(res._value)
             result.add_successful_item()
         else:
             result.add_failed_item(str(res._error))
+        index += 1
     result.complete()
     return result, result_list
+
+
 # endregion

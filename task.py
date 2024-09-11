@@ -21,12 +21,15 @@ class Stage(BaseModel):
     error: Optional[Any] = None
     """ 阶段错误 """
 
+    def to_dict(self):
+        return {"name": self.name, "message": self.message}
+
     @property
     def is_completed(self):
         """
         阶段是否已完成。
         """
-        return self.name == "completed"
+        return self.name in ["success_completed", "failed_completed"]
 
     @classmethod
     def running(cls, message: str = "None"):
@@ -52,11 +55,18 @@ class Stage(BaseModel):
         )
 
     @classmethod
-    def completed(cls, message: str = None, data: Any = None):
+    def success_completed(cls, message: str = None, data: Any = None):
         """
-        表示任务已完成，无论成功还是失败。
+        任务(包括子任务已全部完成)，无论成功还是失败。
         """
-        return cls(name="completed", message=message, data=data)
+        return cls(name="success_completed", message=message, data=data)
+
+    @classmethod
+    def failed_completed(cls, message: str = None, error: Exception = None):
+        """
+        任务(包括子任务已全部完成)，无论成功还是失败。
+        """
+        return cls(name="failed_completed", message=message, error=error)
 
 
 # endregion
@@ -115,11 +125,22 @@ class Task:
         return {
             "id": self.id,
             "title": self.title,
+            "stage": self.stage.to_dict() if self.stage else None,
             "children": (
                 [child.to_dict() for child in self.children] if self.children else None
             ),
         }
 
+    def organize_hierarchy(self):
+        """
+        梳理该任务及其子任务的层次结构
+        """
+        if self.children:
+            for child in self.children:
+                child.organize_hierarchy()
+                child.parent = self
+
+    # region 执行任务树
     def run_sync(
         self, on_stage_change: Callable[[Stage, "Task"], None] = None, last_result=None
     ) -> Any:
@@ -170,9 +191,11 @@ class Task:
                 for ancesto_task in task.get_ancestors():
                     stage_dict = stage.model_dump()
                     stage_dict["message"] = None
-                    on_stage_change(Stage(**stage_dict), ancesto_task)
+                    ancesto_task.stage = Stage(**stage_dict)
+                    on_stage_change(ancesto_task.stage, ancesto_task)
                 on_stage_change(stage, task)
 
+        last_error = None
         try:
             for task in tasks:
                 try:
@@ -181,11 +204,22 @@ class Task:
                     update_stage(task, Stage.success(f"Task [{task.title}] succeeded."))
                 except Exception as e:
                     update_stage(task, Stage.failed(f"Task [{task.title}] failed.", e))
+                    last_error = e
                     raise e
         finally:
-            update_stage(self, Stage.completed())
+            if last_error:
+                stage = Stage.failed_completed(
+                    f"Task [{self.title}] failed.", last_error
+                )
+            else:
+                stage = Stage.success_completed(
+                    f"Task [{self.title}] completed.", last_result
+                )
+            update_stage(self, stage)
 
         return last_result
+
+    # endregion
 
 
 # endregion
