@@ -188,7 +188,8 @@ class OpenAiClient:
             'Content-Type': 'application/json; charset=utf-8'
         }
 
-        response = requests.request("POST", url, headers=headers, data=request.model_dump_json())
+        response = requests.request("POST", url, headers=headers, data=request.model_dump_json(), timeout=(10, 120))
+        response.raise_for_status()
         return ChatCompletion(**response.json())
 
 
