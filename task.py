@@ -1,7 +1,9 @@
+import traceback
 from dataclasses import dataclass
 from typing import Callable, Any, Optional
 import uuid
 
+from loguru import logger
 from pydantic import BaseModel
 import wrapt
 
@@ -203,6 +205,8 @@ class Task:
                     last_result = task.executable(find_context(task), last_result)
                     update_stage(task, Stage.success(f"Task [{task.title}] succeeded."))
                 except Exception as e:
+                    logger.error(str(e))
+                    traceback.print_exc()
                     update_stage(task, Stage.failed(f"Task [{task.title}] failed.", e))
                     last_error = e
                     raise e

@@ -20,14 +20,22 @@ class BusinessException(Exception):
     def __str__(self):
         return f"错误代码: {self.code} \n 详情: {self.message} \n 参考链接: {self.reference_url}"
 
+
 class NetworkException(BusinessException):
     __网络异常_CODE: ClassVar[int] = 23360
-    
+    __从网络上下载文件失败_CODE: ClassVar[int] = 23361
+
     @classmethod
-    def generic(cls , msg="网络异常"):
+    def generic(cls, msg="网络异常"):
         return cls(code=NetworkException.__网络异常_CODE,
                    message=msg)
-    
+
+    @classmethod
+    def down_from_internet(cls, msg="从网络上下载文件时出现异常"):
+        return cls(code=NetworkException.__从网络上下载文件失败_CODE,
+                   message=msg)
+
+
 class AuthorizationException(BusinessException):
     __未授权的用户_CODE: ClassVar[int] = 23361
 

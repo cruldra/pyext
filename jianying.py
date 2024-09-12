@@ -2,6 +2,7 @@ import math
 import shutil
 import subprocess
 import time
+import traceback
 from dataclasses import field
 from pathlib import Path
 from typing import List, Union, Any, Optional, ClassVar
@@ -2390,7 +2391,8 @@ class JianYingDesktop:
                         raise Exception(f"数字人视频文件未生成")
                     return digital_human_video_file
                 except Exception as e:
-                    logger.error(e)
+                    logger.error(str(e))
+                    traceback.print_exc()
                     raise e
 
             return wait_video_file()

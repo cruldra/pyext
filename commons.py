@@ -1,4 +1,5 @@
 import ctypes
+import json
 import logging
 import re
 import socket
@@ -88,6 +89,8 @@ class BatchProcessingResult:
         """
         完成度
         """
+        if self.total_items==0:
+            return 1
         return self.processed_items / self.total_items if self.total_items > 0 else 0
 
     @property
@@ -95,6 +98,8 @@ class BatchProcessingResult:
         """
         成功率
         """
+        if self.total_items==0:
+            return 1
         return self.successful_items / self.total_items if self.total_items > 0 else 0
 
     @property
@@ -102,6 +107,8 @@ class BatchProcessingResult:
         """
         失败率
         """
+        if self.total_items==0:
+            return 1
         return self.failed_items / self.total_items if self.total_items > 0 else 0
 
     def complete(self, end_time: datetime = None, fail_threshold: int = None):
@@ -713,7 +720,7 @@ class ProcessManager(object):
             logger.info(f"进程 {pid} 不存在或已经终止")
             return True
         except Exception as e:
-            logger.exception(f"终止进程 {pid} 时发生错误: {e}")
+            logger.error(f"终止进程 {pid} 时发生错误: {e}")
             return False
 
     @staticmethod
@@ -928,7 +935,7 @@ def run_catching(func: Callable[[], T]) -> Result:
     try:
         return Result(value=func())
     except Exception as e:
-        logger.exception(e)
+        logger.error(e)
         return Result(error=e)
 
 
@@ -986,3 +993,17 @@ def deprecated(reason):
         return new_func
 
     return decorator
+
+
+class Json:
+    class Encoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            return super().default(obj)
+    @staticmethod
+    def to_string(obj):
+        """
+        将对象转换为JSON字符串
+        """
+        return json.dumps(obj, ensure_ascii=False, cls=Json.Encoder)

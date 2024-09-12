@@ -175,11 +175,11 @@ class Aeneas(object):
 
     # region 强制对齐音频和文本
     def force_align(
-        self,
-        audio_file: TAF,
-        text: str,
-        language_code: LanguageCode = None,
-        format: str = "srt",
+            self,
+            audio_file: TAF,
+            text: str,
+            language_code: LanguageCode = None,
+            format: str = "srt",
     ) -> Union["SrtSubtitleFile", "JsonFile"]:
         """
         将音频文件与文本强制对齐
@@ -207,11 +207,11 @@ class LocalAeneas(Aeneas):
         super().__init__()
 
     def force_align(
-        self,
-        audio_file: TAF,
-        text: str,
-        language_code: LanguageCode = None,
-        format: str = "srt",
+            self,
+            audio_file: TAF,
+            text: str,
+            language_code: LanguageCode = None,
+            format: str = "srt",
     ) -> Union["SrtSubtitleFile", "JsonFile"]:
         language_code = language_code or LanguageCode.from_langdetect(
             self.detect_language(text)
@@ -248,7 +248,7 @@ class LocalAeneas(Aeneas):
 
 class DockerAeneas(Aeneas):
     def __init__(
-        self, docker_client: DockerClient, aeneas_image: str = "dongjak/aeneas"
+            self, docker_client: DockerClient, aeneas_image: str = "dongjak/aeneas"
     ):
         """
         使用Docker运行aeneas
@@ -260,11 +260,11 @@ class DockerAeneas(Aeneas):
         """使用的docker镜像"""
 
     def force_align(
-        self,
-        audio_file: TAF,
-        text: str,
-        language_code: LanguageCode = None,
-        format: str = "srt",
+            self,
+            audio_file: TAF,
+            text: str,
+            language_code: LanguageCode = None,
+            format: str = "srt",
     ) -> Union["SrtSubtitleFile", "JsonFile"]:
         language_code = language_code or LanguageCode.from_langdetect(
             self.detect_language(text)
@@ -321,6 +321,8 @@ class File(object):
             path: 文件路径
             auto_create_parent_dir: 是否自动创建父目录
         """
+        if not path:
+            raise IOError(f"路径{path}不是一个有效的路径")
         self.path = PathlibPath(path)
         if auto_create_parent_dir:
             # 获取父目录
@@ -330,6 +332,10 @@ class File(object):
 
     def exists(self):
         return self.path.exists()
+
+    def raise_for_not_exists(self):
+        if not self.exists():
+            raise IOError(f"文件{self.path}不存在")
 
     def delete(self):
         self.path.unlink()
@@ -423,6 +429,10 @@ class File(object):
         # 将时间戳转换为 datetime 对象
         modification_datetime = datetime.datetime.fromtimestamp(modification_time)
         return modification_datetime
+
+    @property
+    def data_size(self):
+        return self.path.stat().st_size
 
 
 # region 字幕文件
@@ -534,7 +544,7 @@ class AssSubtitleFile(SubtitleFile):
         self.subs.save(str(self.path))
 
     def apply_style(
-        self, style_name: str, events_filter: callable = lambda event: True
+            self, style_name: str, events_filter: callable = lambda event: True
     ):
         """
         应用样式
@@ -559,12 +569,12 @@ class AssSubtitleFile(SubtitleFile):
         self.apply_style(style_name)
 
     def set_max_width(
-        self,
-        max_width: int,
-        font_path: str,
-        font_size: int,
-        margin_left: int = 20,
-        margin_right: int = 20,
+            self,
+            max_width: int,
+            font_path: str,
+            font_size: int,
+            margin_left: int = 20,
+            margin_right: int = 20,
     ):
         """
         设置最大宽度
@@ -629,7 +639,7 @@ class AssSubtitleFile(SubtitleFile):
 
 class VideoFile(File):
 
-    def __init__(self, path: str):
+    def __init__(self, path: str = None):
         super().__init__(path)
 
     def extract_audio(self, audio_file_name: str = None) -> "AudioFile":
@@ -847,7 +857,7 @@ class JsonFile(File):
             return Dict(json.load(file))
 
     def read_as_pydanitc_model(
-        self, model: Type[TPM], additional_data: dict[str, any] = None
+            self, model: Type[TPM], additional_data: dict[str, any] = None
     ) -> TPM:
         """
         读取文件内容并将其转换为 Pydantic 模型
@@ -884,6 +894,8 @@ class Directory(object):
             path: 目录路径
             auto_create: 是否自动创建目录,默认为True
         """
+        if not path:
+            raise IOError(f"路径{path}不是一个有效的路径")
         self.path = PathlibPath(path)
         if auto_create and not self.path.exists():
             self.path.mkdir(parents=True)
@@ -1150,12 +1162,12 @@ class GitRepository(Directory):
 
     @classmethod
     def from_remote(
-        cls,
-        url: str,
-        directory: str = None,
-        name: str = None,
-        branch: str = "master",
-        recursive: bool = False,
+            cls,
+            url: str,
+            directory: str = None,
+            name: str = None,
+            branch: str = "master",
+            recursive: bool = False,
     ):
         """
         从远程仓库克隆
@@ -1236,7 +1248,7 @@ class ZipFile(CompressedFile):
 
                 # 读取文件内容
                 with zf.open(
-                    file_info, pwd=password.encode() if password else None
+                        file_info, pwd=password.encode() if password else None
                 ) as file:
                     content = file.read().decode("utf-8")
 
