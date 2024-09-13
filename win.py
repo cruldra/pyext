@@ -39,32 +39,34 @@ def open_file_dialog(title="请选择文件"):
                 path = path.decode('utf-8')  # 将字节字符串转换为Unicode字符串
             except UnicodeDecodeError:
                 path = path.decode('gbk')  # 如果解码失败，尝试使用GBK编码
-        if os.path.isfile(path) :
+        if os.path.isfile(path):
             return path.lower()
         else:
             return None
     return None
 
-def show_message_box(msg,callback=None,type="info"):
+
+def show_message_box(msg, callback=None, type="info"):
     root = tk.Tk()
     root.withdraw()  # 隐藏主窗口
 
     if type == "info":
-        res =messagebox.showinfo("提示", msg)
+        res = messagebox.showinfo("提示", msg)
     elif type == "warning":
-        res =messagebox.showwarning("警告", msg)
+        res = messagebox.showwarning("警告", msg)
     elif type == "error":
-        res =messagebox.showerror("错误", msg)
+        res = messagebox.showerror("错误", msg)
     elif type == "question":
         res = messagebox.askquestion("问题", msg)
     else:
-        res =messagebox.showinfo("提示", msg)
+        res = messagebox.showinfo("提示", msg)
     # 或者使用其他类型的消息框:
     # messagebox.showwarning("警告", "这是一个警告框！")
     # messagebox.showerror("错误", "这是一个错误框！")
     if callback:
         callback(res)
     root.destroy()
+
 
 def get_windows_theme():
     """
@@ -124,6 +126,7 @@ def wait_win(locator, timeout=0, interval=1):
         interval: 等待间隔,默认1秒
     """
     window_name = str(locator).split(".")[-1]
+
     @retry(stop=stop_after_delay(timeout if timeout > 0 else 86400), wait=wait_fixed(interval))
     def wait_window_exists():
         """

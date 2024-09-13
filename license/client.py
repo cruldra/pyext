@@ -29,7 +29,6 @@ def get_machine_code():
         return f"{platform.node()}-{uuid.getnode()}"
 
 
-
 class KeyClient:
     def __init__(self, server_url):
         self.server_url = server_url
@@ -45,10 +44,12 @@ class KeyClient:
         else:
             raise Exception("Failed to retrieve key")
 
+
 typer_app = typer.Typer()
 
+
 @typer_app.command()
-def verify(server_url: str="http://8.130.104.39:5000"):
+def verify(server_url: str = "http://8.130.104.39:5000"):
     client = KeyClient(server_url)
     try:
         key = client.get_key()

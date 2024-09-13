@@ -2122,6 +2122,7 @@ class JianYingDesktop:
                     ui(locator.jianyingpro.环境检测窗口上的确认按钮).click()
                     raise Exception("剪映主窗口未打开")
                 return True
+
             @retry(stop=stop_after_delay(60), wait=wait_fixed(1))
             def wait_jianying_main_window():
                 logger.info("正在等待剪映主窗口打开...")

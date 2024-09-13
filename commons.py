@@ -1,4 +1,5 @@
 import ctypes
+import functools
 import json
 import logging
 import re
@@ -7,9 +8,8 @@ import subprocess
 import textwrap
 import time
 import uuid
-from dataclasses import dataclass
 import warnings
-import functools
+from dataclasses import dataclass
 # region 批处理任务的执行结果
 from datetime import datetime
 from typing import List, Any, Dict, Callable, TypeVar, Type
@@ -89,7 +89,7 @@ class BatchProcessingResult:
         """
         完成度
         """
-        if self.total_items==0:
+        if self.total_items == 0:
             return 1
         return self.processed_items / self.total_items if self.total_items > 0 else 0
 
@@ -98,7 +98,7 @@ class BatchProcessingResult:
         """
         成功率
         """
-        if self.total_items==0:
+        if self.total_items == 0:
             return 1
         return self.successful_items / self.total_items if self.total_items > 0 else 0
 
@@ -107,7 +107,7 @@ class BatchProcessingResult:
         """
         失败率
         """
-        if self.total_items==0:
+        if self.total_items == 0:
             return 1
         return self.failed_items / self.total_items if self.total_items > 0 else 0
 
@@ -1001,6 +1001,7 @@ class Json:
             if isinstance(obj, datetime):
                 return obj.isoformat()
             return super().default(obj)
+
     @staticmethod
     def to_string(obj):
         """

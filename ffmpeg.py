@@ -47,7 +47,7 @@ class Ffmpeg(object):
             logger.info("使用本地ffmpeg")
             return LocalFfmpeg()
 
-    def video_denoise(self, video_file: VideoFile ,video_filter:str ,audio_filter:str ) -> VideoFile:
+    def video_denoise(self, video_file: VideoFile, video_filter: str, audio_filter: str) -> VideoFile:
         """
         视频降噪
 
@@ -60,7 +60,6 @@ class Ffmpeg(object):
             VideoFile: 新的视频文件
         """
         raise NotImplementedError()
-    
 
     def add_background_music(self, video_file: VideoFile, audio_file: AudioFile, volume: int = None) -> VideoFile:
         """
@@ -191,7 +190,8 @@ class LocalFfmpeg(Ffmpeg):
         """
         super().__init__()
 
-    def video_denoise(self, video_file: VideoFile,video_filter:str="atadenoise" ,audio_filter="afftdn=nf=-25") -> VideoFile:
+    def video_denoise(self, video_file: VideoFile, video_filter: str = "atadenoise",
+                      audio_filter="afftdn=nf=-25") -> VideoFile:
         output_video_file = video_file.path.parent / f"{video_file.path.stem}_denoise.{video_file.suffix}"
         command = [
             'ffmpeg',

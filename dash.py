@@ -3,7 +3,7 @@
 """
 import threading
 from typing import Any
-import dongjak_dash_components2 as ddc
+
 import shortuuid
 from dash import dash
 from dongjak_dash_components2.starter import MantineNotificationOperations

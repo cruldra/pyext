@@ -88,6 +88,7 @@ def list_keys():
     for client_id, key in keys:
         print(f"Client ID: {client_id}, Key: {key}")
 
+
 @typer_app.command()
 def del_client(client_id):
     """
@@ -101,6 +102,7 @@ def del_client(client_id):
     c.execute("DELETE FROM keys WHERE client_id = ?", (client_id,))
     conn.commit()
     conn.close()
+
 
 if __name__ == '__main__':
     typer_app()

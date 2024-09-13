@@ -151,7 +151,7 @@ class OpenAiClient:
         self.base_url = base_url
         self.key = key
 
-    def stt(self,audio_file:AudioFile):
+    def stt(self, audio_file: AudioFile):
         """
         语音转文字
         Args:

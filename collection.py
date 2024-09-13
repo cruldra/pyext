@@ -1,5 +1,4 @@
-from typing import Any, Callable, Iterable, TypeVar
-
+from typing import Callable, TypeVar
 
 T = TypeVar("T", bound="Any")
 
@@ -12,7 +11,7 @@ class Collection(object):
     def __init__(self, *args: T):
         self.value = list(args)
 
-    def inserts(self, index:int,*args:T )->'Collection[T]':
+    def inserts(self, index: int, *args: T) -> 'Collection[T]':
         """
         在指定位置插入一个子集合,如果插入位置已有元素，将它们移动到子数组之后
 
@@ -44,11 +43,10 @@ class List(Collection):
     def __init__(self, *args: T):
         super().__init__(*args)
 
-
     def inserts(self, index: int, *args: T):
         new_list = self.value[:index] + list(args) + self.value[index:]
         return List(*new_list)
-    
+
     def map(self, func: Callable[[T], T]) -> 'List[T]':
         """
         对集合中的每个元素应用一个函数，并返回一个新的集合
@@ -58,4 +56,3 @@ class List(Collection):
                 Collection[T]: 应用函数后的新集合
         """
         return List(*map(func, self.value))
-        
