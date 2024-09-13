@@ -353,7 +353,7 @@ class LocalFfmpeg(Ffmpeg):
         filter_complex_str = ';'.join(filter_complex)
 
         command = f"ffmpeg -y -i {video_file.path.absolute()} {sub_cmd1} -filter_complex \"{filter_complex_str}\" -map \"[v{len(image_fragments)}]\" -map 0:a  -c:a copy {video_file.path.parent.absolute() / new_name}"
-
+        logger.info(f"使用以下命令为视频添加图片片段:\n{command}")
         # 执行命令
         output = CommandLine.run_and_get(command)
         logger.info(f"为视频添加图片片段:{output.output}")
