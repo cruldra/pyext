@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Optional, ClassVar
 
 from pydantic import ValidationError
