@@ -90,4 +90,4 @@ def _calculate_exception_code(message: str) -> int:
 
 
 if __name__ == '__main__':
-    print(_calculate_exception_code("ScriptException"))
+    print(_calculate_exception_code("CDP端口未打开"))
