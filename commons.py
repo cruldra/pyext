@@ -935,7 +935,7 @@ def run_catching(func: Callable[[], T]) -> Result:
     try:
         return Result(value=func())
     except Exception as e:
-        logger.error(e)
+        logger.exception(e)
         return Result(error=e)
 
 

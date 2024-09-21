@@ -6,6 +6,7 @@ import traceback
 from dataclasses import field
 from pathlib import Path
 from typing import List, Union, Any, Optional, ClassVar
+from xdrlib import raise_conversion_error
 
 import pyautogui
 import pyperclip
@@ -2048,7 +2049,7 @@ class JianYingDesktop:
         pyautogui.moveRel(100, 0)
         pyautogui.click()
 
-        @retry(stop=stop_after_delay(5), wait=wait_fixed(1))
+        @retry(stop=stop_after_delay(5), wait=wait_fixed(1), reraise=True)
         def wait_options_window():
             if not cc.is_existing(locator.jianyingpro.图文成片_点击生成视频按钮后出现的窗口):
                 raise Exception("图文成片_点击生成视频按钮后出现的窗口未打开")
@@ -2070,7 +2071,7 @@ class JianYingDesktop:
         退出剪映桌面版
         """
 
-        @retry(stop=stop_after_delay(999999))
+        @retry(stop=stop_after_delay(999999), reraise=True)
         def body():
             res = []
             for pid in self.pids:
@@ -2113,7 +2114,7 @@ class JianYingDesktop:
             # 否则启动剪映桌面版,然后在15秒内每隔2秒检查是否启动成功
             subprocess.Popen(self.executable_path)
 
-            @retry(stop=stop_after_delay(30), wait=wait_fixed(1))
+            @retry(stop=stop_after_delay(30), wait=wait_fixed(1), reraise=True)
             def wait_env_check_btn():
                 logger.info("正在等待环境检测窗口上的确定按钮...")
                 if cc.is_existing(locator.jianyingpro.剪映主窗口):
@@ -2123,7 +2124,7 @@ class JianYingDesktop:
                     raise Exception("剪映主窗口未打开")
                 return True
 
-            @retry(stop=stop_after_delay(60), wait=wait_fixed(1))
+            @retry(stop=stop_after_delay(60), wait=wait_fixed(1), reraise=True)
             def wait_jianying_main_window():
                 logger.info("正在等待剪映主窗口打开...")
                 if not cc.is_existing(locator.jianyingpro.剪映主窗口):
@@ -2153,7 +2154,7 @@ class JianYingDesktop:
         """
         ui(locator.jianyingpro.开始创作).click()
 
-        @retry(stop=stop_after_attempt(5), wait=wait_fixed(2))
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(2), reraise=True)
         def wait_main_window():
             if not cc.is_existing(locator.jianyingpro.剪辑窗口):
                 raise Exception("剪辑窗口未打开")
@@ -2179,7 +2180,7 @@ class JianYingDesktop:
             bool: 如果成功打开草稿, 则返回True
         """
 
-        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1), reraise=True)
         def wait_draft_search_result():
             if not cc.is_existing(locator.jianyingpro.草稿列表中的第一个元素):
                 raise Exception(f"未找到草稿: {draft.name}")
@@ -2195,7 +2196,7 @@ class JianYingDesktop:
             ui(locator.jianyingpro.草稿列表中的第一个元素).click()
 
         # 最后等待剪辑窗口出现
-        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1), reraise=True)
         def wait_edit_window():
             if not cc.is_existing(locator.jianyingpro.剪辑窗口):
                 raise Exception("剪辑窗口未打开")
@@ -2263,7 +2264,7 @@ class JianYingDesktop:
         logger.info(f"找到更换音色的tab标签,位于{center_point_x},{center_point_y}")
         pyautogui.click(center_point_x, center_point_y)
 
-        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1), reraise=True)
         def wait_sound_list():
             if not cc.is_existing(locator.jianyingpro.音色):
                 raise Exception(f"加载音色列表失败")
@@ -2311,7 +2312,7 @@ class JianYingDesktop:
         """
         self.select_text_segment(text_segment_index_range)
 
-        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1), reraise=True)
         def wait_digital_human_tab():
             """在5秒内等待文本轨道选择后出现"添加数字人"tab标签"""
             return pyautogui.locateOnScreen(
@@ -2323,8 +2324,17 @@ class JianYingDesktop:
         image_center_point = pyautogui.center(image_location)
         center_point_x, center_point_y = image_center_point
         pyautogui.click(center_point_x, center_point_y)
+        time.sleep(1)
+        pyautogui.click(center_point_x, center_point_y)
+        time.sleep(1)
+        pyautogui.click(center_point_x, center_point_y)
+        time.sleep(1)
+        pyautogui.click(center_point_x, center_point_y)
+        time.sleep(1)
+        pyautogui.click(center_point_x, center_point_y)
+        time.sleep(1)
 
-        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
+        @retry(stop=stop_after_attempt(5), wait=wait_fixed(1), reraise=True)
         def wait_digital_human_list():
             if not cc.is_existing(locator.jianyingpro.数字人):
                 raise Exception(f"加载数字人列表失败")
@@ -2335,7 +2345,7 @@ class JianYingDesktop:
                 "index": digital_human_index
             }).click()
 
-            @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
+            @retry(stop=stop_after_attempt(3), wait=wait_fixed(1), reraise=True)
             def wait_add_digital_human_button():
                 """在3秒内等待数字人列表加载完成后出现"添加数字人"按钮"""
                 return pyautogui.locateOnScreen(
@@ -2348,7 +2358,7 @@ class JianYingDesktop:
             center_point_x, center_point_y = image_center_point
 
             # 点击添加数字人按钮,然后等待"音频更新中"的提示框出现
-            @retry(stop=stop_after_attempt(50), wait=wait_fixed(0.2))
+            @retry(stop=stop_after_attempt(50), wait=wait_fixed(0.2), reraise=True)
             def wait_update_window():
                 pyautogui.click(center_point_x, center_point_y)
                 print(f"在{center_point_x},{center_point_y}上点击了添加数字人按钮")
@@ -2360,7 +2370,7 @@ class JianYingDesktop:
 
             # 点击完"添加数字人"按钮后,等待视频轨道出现
 
-            @retry(stop=stop_after_delay(30), wait=wait_fixed(1))
+            @retry(stop=stop_after_delay(30), wait=wait_fixed(1), reraise=True)
             def wait_video_track():
                 # 在30秒内等待视频轨道出现
                 if not cc.is_existing(locator.jianyingpro.视频轨道):
@@ -2377,7 +2387,7 @@ class JianYingDesktop:
             # 可能会有多个文件,按创建时间和大小排序，然后取第一个
             # self.dr
 
-            @retry(stop=stop_after_delay(self.render_digital_human_timeout), wait=wait_fixed(3))
+            @retry(stop=stop_after_delay(self.render_digital_human_timeout), wait=wait_fixed(3), reraise=True)
             def wait_video_file():
                 try:
                     logger.info("正在等待视频渲染...")
