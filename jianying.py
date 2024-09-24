@@ -2413,7 +2413,8 @@ class JianYingDesktop:
 # endregion
 
 
-def calculate_max_chars_per_line(screen_width, font_path, font_size, margin_left, margin_right):
+def calculate_max_chars_per_line(screen_width: int, font_path: str, font_size: int, margin_left: int,
+                                 margin_right: int) -> int:
     """
     计算每行最多可以容纳的字数
 
