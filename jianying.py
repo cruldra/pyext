@@ -6,7 +6,6 @@ import traceback
 from dataclasses import field
 from pathlib import Path
 from typing import List, Union, Any, Optional, ClassVar
-from xdrlib import raise_conversion_error
 
 import pyautogui
 import pyperclip
