@@ -15,7 +15,6 @@ from datetime import datetime
 from typing import List, Any, Dict, Callable, TypeVar, Type
 from typing import Tuple
 
-import coloredlogs
 import psutil
 import pysubs2
 from PIL import ImageFont, Image, ImageDraw
@@ -814,30 +813,6 @@ class Netcat(object):
 
 
 # endregion
-
-
-def setup_colored_logger(logger: logging.Logger = None):
-    """
-    设置带颜色的日志记录器
-    """
-    coloredlogs.install(
-        logger=logger,
-        level="DEBUG",
-        fmt="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        level_styles={
-            "debug": {"color": "cyan"},
-            "info": {"color": "green"},
-            "warning": {"color": "yellow"},
-            "error": {"color": "red", "bold": True},
-            "critical": {"color": "red", "bold": True, "background": "white"},
-        },
-        field_styles={
-            "asctime": {"color": "green"},
-            "levelname": {"color": "magenta", "bold": True},
-            "name": {"color": "blue"},
-        },
-    )
 
 
 # region 表示尺寸
