@@ -1,7 +1,5 @@
 import os
-import tkinter as tk
 import winreg
-from tkinter import messagebox
 
 import win32gui
 import wrapt

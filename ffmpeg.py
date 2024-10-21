@@ -266,6 +266,7 @@ class LocalFfmpeg(Ffmpeg):
         command = (
             f"ffmpeg -y -i  {str(video_file.path.absolute())} -q:a 0 -map a {audio_file_path}"
         )
+        logger.info(f"使用以下命令将视频转换为音频:{command}")
         output = CommandLine.run_and_get(command)
         logger.info(f"将视频转换为音频:{output.stdout}")
         if audio_type == Mp3File:
